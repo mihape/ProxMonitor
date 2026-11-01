@@ -1,0 +1,48 @@
+# Android & Gradle
+*.iml
+.gradle/
+/local.properties
+local.properties
+.idea/
+.kotlin/
+/build/
+*/build/
+app/build/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Build artifacts & packages
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# Keystores & signing secrets
+*.jks
+*.keystore
+
+# Python & Backend (FastAPI)
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+.pytest_cache/
+.mypy_cache/
+
+# Környezeti változók és titkok (SOHA nem kerülhetnek Gitbe!)
+.env
+.env.local
+.env.*.local
+*.env
+!*.env.example
+secrets/
+tokens/
+
+# OS specifikus fájlok
+.DS_Store
+Thumbs.db
+Desktop.ini
