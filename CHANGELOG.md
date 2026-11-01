@@ -28,12 +28,26 @@ A formátum a [Keep a Changelog](https://keepachangelog.com/hu/1.0.0/) elveit k�
 
 ---
 
-## Tervezett mérföldkövek:
+## [v0.2.0] - 2026-11-01
 
-### [v0.2.0] - FastAPI backend megvalósítása (Tervezett)
-- Python 3 + FastAPI mikroszolgáltatás létrehozása a `backend/` könyvtárban.
-- Proxmox VE REST API integráció (`pve-api-token` alapú biztonságos autentikáció).
-- Egyszerűsített, mobilra optimalizált REST végpontok kialakítása (`/api/status`, `/api/nodes`, `/api/resources`).
+### Hozzáadva
+- **FastAPI backend megvalósítása (`backend/`):**
+  - Python 3 + FastAPI mikroszolgáltatás aszinkron HTTP támogatással.
+  - Pydantic v2 adatmodellek (`ServerStatusResponse`, `ResourcesResponse`, `HealthResponse`).
+  - Beépített mintaadat-szolgáltató (`app/demo_provider.py`) a bemutató módhoz.
+  - Aszinkron Proxmox VE REST API kliens (`app/proxmox_client.py`) a valós szerverkommunikációhoz (`/api2/json/nodes/{node}/status`, `/api2/json/cluster/resources`).
+  - Szigorú üzemmód-elválasztás: DEMO és LIVE mód, hiba esetén a LIVE mód nem esik vissza mintaadatokra.
+  - Fejlécalapú hitelesítés: `X-API-Key` és `Authorization: Bearer` támogatása.
+  - Swagger UI interaktív dokumentáció a `/docs` végponton.
+- **Automatizált tesztek (`backend/tests/test_api.py`):**
+  - 9 db automatizált pytest teszt: /health ellenőrzés, hiányzó/hibás auth (401), sikeres DEMO lekérdezések, hibás konfiguráció (500), elérhetetlen Proxmox szerver (502).
+- **Konfiguráció és biztonság:**
+  - `backend/.env.example` példakonfiguráció.
+  - Szigorú SSL ellenőrzés támogatása és localhosthoz kötött indítás (`127.0.0.1:8000`).
+
+---
+
+## [v0.1.0] - 2026-11-01 (Kezdeti állapot)
 
 ### [v0.3.0] - Android REST API integráció (Tervezett)
 - Retrofit 2 és OkHttp kliens beépítése az Android modulba.
