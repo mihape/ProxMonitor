@@ -72,15 +72,48 @@ class ProxmoxClient:
             "timeout": httpx.Timeout(connect=5.0, read=10.0, write=5.0, pool=5.0),
         }
 
+    async def _get_available_nodes(self, client: httpx.AsyncClient) -> List[str]:
+        """Lekérdezi az elérhető csomópontok (node-ok) neveit a Proxmox klaszterből."""
+        try:
+            resp = await client.get(f"{self.host}/api2/json/nodes")
+            if resp.status_code == 200:
+                data = resp.json().get("data", [])
+                return [item.get("node") for item in data if item.get("node")]
+        except Exception:
+            pass
+        return []
+
     async def get_node_status(self) -> ServerStatusResponse:
         """
         Lekérdezi a node állapotát a Proxmox '/api2/json/nodes/{node}/status' végpontjáról.
+        Ha a megadott node név nem létezik, automatikusan felderíti az érvényes neveket.
         """
         url = f"{self.host}/api2/json/nodes/{self.node}/status"
 
         try:
             async with httpx.AsyncClient(**self._get_client_kwargs()) as client:
                 response = await client.get(url)
+
+                # Ha a megadott node név hibát dobott, megpróbáljuk lekérdezni az elérhető node-okat
+                if response.status_code != 200:
+                    available = await self._get_available_nodes(client)
+                    if available:
+                        if self.node not in available:
+                            # Ha csak egyetlen node létezik (tipikus egynode-os Proxmox), próbáljuk meg azzal
+                            if len(available) == 1:
+                                actual_node = available[0]
+                                retry_resp = await client.get(f"{self.host}/api2/json/nodes/{actual_node}/status")
+                                if retry_resp.status_code == 200:
+                                    self.node = actual_node
+                                    response = retry_resp
+                            
+                            if response.status_code != 200:
+                                raise ProxmoxConnectionError(
+                                    f"A(z) '{self.node}' nevű csomópont nem található a Proxmox szerveren! "
+                                    f"Az elérhető csomópont(ok): {', '.join(available)}. "
+                                    f"Kérlek javítsd a .env fájlban: PROXMOX_NODE={available[0]}",
+                                    status_code=502,
+                                )
         except httpx.ConnectError as e:
             raise ProxmoxConnectionError(
                 f"Nem sikerült csatlakozni a Proxmox szerverhez ({self.host}): Kapcsolódási hiba ({e}).",
@@ -91,6 +124,8 @@ class ProxmoxClient:
                 f"Időtúllépés a Proxmox szerver elérésekor ({self.host}).",
                 status_code=504,
             )
+        except ProxmoxConnectionError:
+            raise
         except Exception as e:
             raise ProxmoxConnectionError(
                 f"Hálózati hiba a Proxmox kommunikáció során: {e}",

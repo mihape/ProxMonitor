@@ -1,7 +1,7 @@
 """ProxMonitor FastAPI Backend - Fő alkalmazásbelépési pont és végpontok."""
 
 from fastapi import Depends, FastAPI, HTTPException, Request, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from app.config import AppMode, settings
 from app.auth import verify_api_key
 from app.models import HealthResponse, ServerStatusResponse, ResourcesResponse
@@ -18,6 +18,12 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
+
+
+@app.get("/", include_in_schema=False)
+async def root():
+    """A gyökér URL megnyitásakor automatikusan átirányít a Swagger felületre (/docs)."""
+    return RedirectResponse(url="/docs")
 
 
 @app.exception_handler(ProxmoxConnectionError)
