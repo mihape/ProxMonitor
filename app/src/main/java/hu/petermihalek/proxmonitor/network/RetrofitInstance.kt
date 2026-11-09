@@ -29,9 +29,16 @@ object RetrofitInstance {
 
     /**
      * Lehetővé teszi az IP-cím futásidejű módosítását (ha fizikai telefonon tesztelsz).
+     * Automatikusan hozzáadja a 'http://' sémát és a lezáró '/' jelet, ha a felhasználó kihagyná.
      */
     fun updateBaseUrl(newUrl: String) {
-        val sanitized = if (newUrl.endsWith("/")) newUrl else "$newUrl/"
+        var sanitized = newUrl.trim()
+        if (!sanitized.startsWith("http://") && !sanitized.startsWith("https://")) {
+            sanitized = "http://$sanitized"
+        }
+        if (!sanitized.endsWith("/")) {
+            sanitized = "$sanitized/"
+        }
         baseUrl = sanitized
         retrofit = null // Újrainicializálja az új címmel
     }

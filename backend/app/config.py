@@ -29,8 +29,8 @@ class Settings(BaseSettings):
     proxmox_verify_ssl: bool = Field(default=True, alias="PROXMOX_VERIFY_SSL")
     proxmox_ca_cert: Optional[str] = Field(default=None, alias="PROXMOX_CA_CERT")
 
-    # Hálózati kiszolgáló beállítások
-    host: str = Field(default="127.0.0.1", alias="PROXMONITOR_HOST")
+    # Hálózati kiszolgáló beállítások (0.0.0.0 = elérhető a helyi Wi-Fi hálózatról is, pl. telefonról)
+    host: str = Field(default="0.0.0.0", alias="PROXMONITOR_HOST")
     port: int = Field(default=8000, alias="PROXMONITOR_PORT")
 
     model_config = SettingsConfigDict(

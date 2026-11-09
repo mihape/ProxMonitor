@@ -15,8 +15,8 @@ if __name__ == "__main__":
     print(f"============================================================")
     print(f"  ProxMonitor Backend Szerver Indítása")
     print(f"  Üzemmód:      {settings.mode.value}")
-    print(f"  Elérés:       http://{settings.host}:{settings.port}")
-    print(f"  Dokumentáció: http://{settings.host}:{settings.port}/docs")
+    print(f"  Kiszolgáló:   {settings.host}:{settings.port}")
+    print(f"  Dokumentáció: http://127.0.0.1:{settings.port}/docs")
     print(f"============================================================")
 
     uvicorn.run(
