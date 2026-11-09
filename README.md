@@ -3,7 +3,7 @@
 > **Miskolci Egyetem – Mobilprogramozás tantárgyi beadandó**  
 > **Témakör:** REST API és JSON-feldolgozás Android-alkalmazásokban  
 > **Szerző:** Mihalek Péter  
-> **Aktuális verzió:** v0.1.0 (Kezdeti állapot: Működő Jetpack Compose felület mintaadatokkal)
+> **Aktuális verzió:** v0.3.0 (Android REST API és JSON-feldolgozás élő adatokkal)
 
 ---
 
@@ -60,22 +60,21 @@ A rendszer három fő komponensből áll:
 | Funkció | Leírás | Állapot |
 | :--- | :--- | :--- |
 | **Összesítő műszerfal** | Főképernyő a szerver állapotának áttekintésére | **Kész (v0.1.0)** |
-| **CPU terhelés kártya** | Pillanatnyi processzorkihasználtság | Kész (Statikus mintaadat: 24%) |
-| **Memória kártya** | Felhasznált / összes RAM kijelzése | Kész (Statikus mintaadat: 8.2 GB / 16 GB) |
-| **Tárhely kártya** | Merevlemez/tárterület foglaltság | Kész (Statikus mintaadat: 1.8 TB / 4 TB) |
-| **VM / LXC lista kártyák** | Név, típus (VM/LXC) és státusz (Online/Offline) | Kész (Statikus mintaadatok) |
-| **Sötét téma (Dark Theme)** | Letisztult, szerver-dashboard stílusú sötét felület | **Kész (v0.1.0)** |
-| **FastAPI köztes réteg** | Python mikroszolgáltatás a PVE API lekérdezésére | *Tervezett (v0.2.0)* |
-| **Dinamikus REST API hívás**| Valós idejű adatok lekérése a telefonról | *Tervezett (v0.3.0)* |
-| **Hiba- és állapotkezelés** | Betöltésjelző, hálózati hibák, Offline mód kezelése | *Tervezett (v0.4.0)* |
+| **CPU terhelés kártya** | Pillanatnyi processzorkihasználtság és magok száma | **Kész (Élő adatokkal - v0.3.0)** |
+| **Memória kártya** | Felhasznált / összes RAM és százalékos arány | **Kész (Élő adatokkal - v0.3.0)** |
+| **Tárhely kártya** | Merevlemez/tárterület foglaltság és százalék | **Kész (Élő adatokkal - v0.3.0)** |
+| **VM / LXC lista kártyák** | Név, VMID, típus (VM/LXC), memória és státusz | **Kész (19 élő entitás - v0.3.0)** |
+| **FastAPI köztes réteg** | Python mikroszolgáltatás a PVE API lekérdezésére | **Kész (v0.2.0)** |
+| **Dinamikus REST API hívás**| Valós idejű adatok lekérése a telefonról (Retrofit) | **Kész (v0.3.0)** |
+| **Hiba- és állapotkezelés** | Betöltésjelző, hálózati hibák, újrapróbálkozás | **Kész (v0.3.0)** |
 
 ---
 
-## 4. Képernyőkép
+## 4. Képernyőképek
 
-Az alkalmazás kezdőképernyője a Pixel 8 emulátoron futva (v0.1.0):
+Az alkalmazás az élő Proxmox VE adatokkal futva az Android emulátoron (v0.3.0):
 
-![ProxMonitor Kezdőképernyő](screenshots/dashboard_v0.1.0.png)
+![ProxMonitor Élő Dashboard](screenshots/dashboard_v0.3.0_live.png)
 
 ---
 

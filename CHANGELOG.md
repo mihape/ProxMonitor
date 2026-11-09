@@ -28,6 +28,27 @@ A formátum a [Keep a Changelog](https://keepachangelog.com/hu/1.0.0/) elveit k�
 
 ---
 
+## [v0.3.0] - 2026-11-09
+
+### Hozzáadva
+- **Retrofit 2 és Gson REST kliens integráció:**
+  - Hálózati engedélyek hozzáadása (`android.permission.INTERNET`, `usesCleartextTraffic`).
+  - Típusbiztos Kotlin adatmodellek (`ServerStatusResponse`, `ResourcesResponse`, `ResourceItem`).
+  - `ApiService` interfész deklaratív HTTP GET metódusokkal és hitelesítő fejléccel (`X-API-Key`).
+  - `RetrofitInstance` singleton objektum a Retrofit kliens konfigurálásához és futásidejű IP-váltáshoz.
+- **MVVM architektúra és állapotkezelés:**
+  - `MainViewModel`: Coroutine alapú aszinkron hívások (`viewModelScope.launch`) a főszál blokkolása nélkül.
+  - `UiState` lezárt interfész (`sealed interface`): `Loading`, `Success`, `Error` állapotok.
+- **Dinamikus Jetpack Compose felület:**
+  - Valós idejű adatok megjelenítése (CPU terhelés, 12 mag, RAM, tárhely, szerver üzemidő).
+  - 19 darab valós virtuális gép és LXC konténer listázása állapotukkal (Online/Offline) és memóriájukkal.
+  - "Frissítés" gomb és "Beállítások" párbeszédablak (szerver IP és API kulcs kényelmes módosításához).
+  - Hibaállapot kezelése újrapróbálkozás gombbal.
+- **Élő emulátoros tesztelés és képernyőkép:**
+  - Sikeres élő adatlekérdezés a helyi FastAPI backendről és Proxmox VE szerverről (`screenshots/dashboard_v0.3.0_live.png`).
+
+---
+
 ## [v0.2.0] - 2026-11-01
 
 ### Hozzáadva
