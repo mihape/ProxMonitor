@@ -63,7 +63,7 @@ A közvetlen kapcsolat elkerülésének három alapvető biztonsági és szoftve
 1. **Felhasználói interakció / Képernyő megnyitása:**
    - A `MainActivity` indításakor a `DashboardScreen` feliratkozik a ViewModel állapotára.
 2. **Kérés indítása (Aszinkron):**
-   - A mobilalkalmazás Coroutine háttérszálon (IO dispatcher) keresztül HTTP GET kérést küld a backend `/api/status` végpontjára a Retrofit segítségével.
+   - A mobilalkalmazás Coroutine háttérszálon (IO dispatcher) keresztül HTTP GET kérést küld a backend `/api/v1/status` és `/api/v1/resources` végpontjaira a Retrofit segítségével.
 3. **Backend feldolgozás:**
    - A FastAPI fogadja a kérést, ellenőrzi a kliens hitelesítését, majd meghívja a Proxmox `/api2/json/nodes/{node}/status` API-ját.
    - A Proxmox válaszából kinyeri a releváns mutatókat: `cpu` százalék, használt és maximális `memory`, használt és maximális `disk`.

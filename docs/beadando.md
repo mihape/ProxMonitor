@@ -1,16 +1,19 @@
 # Szakmai Beadandó Dolgozat
 
 > **Intézmény:** Miskolci Egyetem – Gépészmérnöki és Informatikai Kar  
+> **Képzés:** Felsőoktatási szakképzés (FOSZ)  
 > **Tantárgy:** Mobilprogramozás  
 > **Témakör:** REST API és JSON-feldolgozás Android-alkalmazásokban  
-> **Projekt:** ProxMonitor  
+> **Projekt címe:** ProxMonitor – Proxmox VE infrastruktúra-felügyelet natív Android környezetben  
 > **Készítette:** Mihalek Péter  
 
 ---
 
 ## 1. Bevezetés és a választott téma indoklása
 
-A modern mobilalkalmazások döntő többsége nem izolált szigetként működik, hanem hálózaton keresztül, központi szerverekkel vagy felhőszolgáltatásokkal kommunikál. Az elosztott rendszerek közötti kommunikáció legelterjedtebb iparági szabványa a **REST (Representational State Transfer)** architektúra, míg az adatok átvitelére és szerializálására a könnyűsúlyú **JSON (JavaScript Object Notation)** formátum a domináns választás.
+A modern mobilalkalmazások működésének alapköve a hálózati kommunikáció. Napjainkban a szoftverrendszerek túlnyomó többsége elosztott architektúrát követ: a mobiltelefon vékony kliensként (Frontend) jeleníti meg az adatokat, míg a komplex üzleti logikát és adatbázis-műveleteket háttérkiszolgálók (Backend) végzik.
+
+A kliens és a szerver közötti kapcsolattartás de facto iparági szabványa a **REST (Representational State Transfer)** architektúra, míg az adatok átvitelére és szerializálására a könnyen olvasható és platformfüggetlen **JSON (JavaScript Object Notation)** formátum szolgál.
 
 A dolgozat és a hozzá tartozó **ProxMonitor** projekt célja a RESTful API-k Android környezetben történő professzionális kezelésének, az aszinkron hálózati műveleteknek és a strukturált JSON adatok deszerializációjának gyakorlati bemutatása egy valós idejű rendszermonitorozó alkalmazás megvalósításán keresztül.
 
@@ -18,46 +21,122 @@ A dolgozat és a hozzá tartozó **ProxMonitor** projekt célja a RESTful API-k 
 
 ## 2. A megoldott probléma: Proxmox VE infrastruktúra-felügyelet
 
-A Proxmox Virtual Environment (PVE) egy nyílt forráskódú, vállalati szintű szerver-virtualizációs platform. Bár a Proxmox fejlett webes kezelőfelülettel rendelkezik, az asztali böngészőre tervezett felület okostelefonon nehezen kezelhető, és nem nyújt gyors, egypillantásos áttekintést.
+A **Proxmox Virtual Environment (PVE)** egy nyílt forráskódú, vállalati szintű szerver-virtualizációs platform. Bár a Proxmox fejlett webes kezelőfelülettel rendelkezik, az asztali böngészőre tervezett felület okostelefonon nehezen kezelhető, lassú és nem nyújt azonnali, áttekinthető képet a szerver állapotáról.
 
-A fejlesztett rendszer lehetővé teszi, hogy a rendszergazda:
-- másodpercek alatt ellenőrizhesse a szerver pillanatnyi processzor-, memória- és lemezterhelését,
-- nyomon kövesse a kritikus virtuális gépek (VM) és konténerek (LXC) futási állapotát,
+A kifejlesztett **ProxMonitor** rendszer lehetővé teszi, hogy a szerverüzemeltető:
+- másodpercek alatt ellenőrizhesse a szerver pillanatnyi processzor-, memória- és háttértár-terhelését,
+- nyomon kövesse a virtuális gépek (QEMU VM) és konténerek (LXC) futási állapotát,
 - biztonságos csatornán keresztül, a legkisebb jogosultság elve mellett férjen hozzá a statisztikákhoz.
 
 ---
 
-## 3. Felhasznált technológiák és szakmai döntések
+## 3. Rendszerarchitektúra és komponensek kapcsolata
 
-### 3.1. Kliensoldal: Modern Android fejlesztés
-1. **Kotlin nyelv:**
-   - Teljes típusbiztonság és null-safety (`?` operátor), amellyel elkerülhető a hálózati JSON feldolgozáskor leggyakrabban előforduló hiba, a `NullPointerException`.
-   - Adatosztályok (`data class`) a REST API válaszok tiszta, tömör modellezésére.
+A rendszer háromrétegű kliens-szerver architektúrára épül:
 
-2. **Jetpack Compose UI keretrendszer:**
-   - A hagyományos XML-alapú nézetekkel (Views/Layouts) szemben a Compose deklaratív szemléletű: a felület egy állapotfüggvény (`UI = f(State)`).
-   - Recomposition mechanizmus: ha a hálózatból új mérési adat érkezik, kizárólag azok a komponensek frissülnek a képernyőn, amelyek adata megváltozott.
+```text
+┌─────────────────────────────────┐
+│       ANDROID MOBIL KLIENS      │
+│  - Jetpack Compose & Material 3 │
+│  - MainViewModel & UiState      │
+│  - Retrofit 2 & Gson konverter  │
+└────────────────┬────────────────┘
+                 │ HTTP / REST (JSON)
+                 │ Fejléc: X-API-Key: <kulcs>
+                 ▼
+┌─────────────────────────────────┐
+│       KÖZTES BACKEND API        │
+│  - Python 3 + FastAPI           │
+│  - Pydantic v2 adatmodellek     │
+│  - Proxmox API Token védelem    │
+└────────────────┬────────────────┘
+                 │ HTTPS / REST (PVE API)
+                 │ Fejléc: PVEAPIToken=root@pam!mobile=UUID
+                 ▼
+┌─────────────────────────────────┐
+│       PROXMOX VE HYPERVISOR     │
+│  - Fizikai gazdagép ('prox')    │
+│  - 19 db QEMU VM és LXC konténer│
+└─────────────────────────────────┘
+```
 
-3. **Material 3 tervezési irányelvek:**
-   - Kártya alapú elrendezés (`Card`, `StatCard`, `ServerCard`), lekerekített sarkok és konzisztens sötét téma, amely ideális a műszerfal típusú monitorozáshoz.
-
-### 3.2. Szerveroldal és Biztonság: FastAPI Backend
-- A mobilalkalmazás és a Proxmox közé egy dedikált Python FastAPI köztes réteg került beépítésre.
-- **Biztonsági megfontolás:** A Proxmox API token soha nem juthat el a mobiltelefonra, mivel a telefonos környezet nem tekinthető megbízható titoktárolónak. A köztes backend elrejti a hitelesítést, és kizárólag szűrt, tiszta JSON választ szolgáltat a mobilnak.
+### Miért szükséges a köztes backend réteg?
+A közvetlen telefon-szerver kapcsolat elkerülésének két kiemelt szakmai indoka van:
+1. **Biztonság (Hitelesítő adatok védelme):**  
+   A Proxmox API token korlátlan hozzáférést biztosíthat a teljes virtualizációs környezethez. Egy Android APK fájl könnyen visszafejthető (dekompilálható), így az alkalmazáskódban tilos érzékeny API-kulcsokat vagy jelszavakat tárolni. A köztes Python backend elrejti a Proxmox hitelesítést, és a telefon felé egy szigorúan korlátozott, dedikált API-kulcsot (`X-API-Key`) kér.
+2. **Hálózati terhelés és adatminimalizálás:**  
+   A Proxmox natív API válaszai több száz technikai paramétert tartalmaznak. A mobilhálózat sávszélességének és akkumulátorának kímélése érdekében a FastAPI backend előfeldolgozza az adatokat, és kizárólag a telefonos felülethez szükséges 4-5 lényeges mezőt továbbítja tiszta JSON formátumban.
 
 ---
 
-## 4. A megvalósítás jelenlegi állapota (v0.1.0 mérföldkő)
+## 4. Az Android kliens megvalósítása
 
-A projekt első fejlesztési fázisában (v0.1.0):
-1. Elkészült a stabil, deklaratív **Jetpack Compose kezdőképernyő** (`DashboardScreen`), amely a fizikai telefonon és az emulátorban is sikeresen renderelődik.
-2. Megvalósításra kerültek az önálló, újrahasznosítható UI komponensek:
-   - `StatCard`: Erőforrás-mutatók (CPU, RAM, Tárhely) kiemelése színekkel és tipográfiával.
-   - `ServerCard`: Szerverállapot (futó entitások neve, típusa, státusza) strukturált megjelenítése.
-3. Kialakításra került a teljes Gradle projektstruktúra a Gradle Wrapperrel és szigorú `.gitignore` konfigurációval.
-4. Rögzítésre kerültek az API specifikációk és az architektúra tervei a további fázisokhoz.
+### 4.1. Hálózati réteg: Retrofit 2 és Gson
+Az alkalmazás hálózatkezelése a Square által kifejlesztett **Retrofit 2** könyvtárra épül. A Retrofit deklaratív módon működik: a végpontokat egy Kotlin interfészben (`ApiService.kt`) definiáljuk:
+
+```kotlin
+interface ApiService {
+    @GET("api/v1/status")
+    suspend fun getServerStatus(
+        @Header("X-API-Key") apiKey: String
+    ): ServerStatusResponse
+
+    @GET("api/v1/resources")
+    suspend fun getResources(
+        @Header("X-API-Key") apiKey: String
+    ): ResourcesResponse
+}
+```
+
+A válaszok deszerializációját a **Gson Converter** végzi. A beérkező szöveges JSON adatokat típusbiztos Kotlin adatosztályokká (`data class`) konvertálja:
+```kotlin
+data class ServerStatusResponse(
+    val mode: String,
+    val node_name: String,
+    val uptime_formatted: String,
+    val cpu: CpuInfo,
+    val memory: MemoryInfo,
+    val storage: StorageInfo
+)
+```
+
+### 4.2. Aszinkron működés és MVVM architektúra
+Az Android rendszer tiltja a hálózati műveletek futtatását a felhasználói felületért felelős fő szálon (`Main UI Thread`), mert a hálózati késleltetés a kijelző lefagyását idézné elő (`NetworkOnMainThreadException`).
+
+A megoldást a **Kotlin Coroutines** és a **ViewModel** (`MainViewModel.kt`) biztosítja:
+- A `viewModelScope.launch` blokk automatikusan a háttérben futtatja a hálózati kéréseket.
+- Az állapotot a reaktív `StateFlow<UiState>` tárolja, amely három egymást kizáró állapotot vesz fel:
+  - `UiState.Loading`: Töltőkarika megjelenítése.
+  - `UiState.Success`: A sikeresen beérkezett adatok átadása a felületnek.
+  - `UiState.Error`: Hiba esetén felhasználóbarát hibaüzenet és „Újrapróbálkozás” gomb.
+
+### 4.3. Felhasználói felület: Jetpack Compose & Material 3
+Az alkalmazás teljes egészében a legújabb deklaratív **Jetpack Compose** technológiával készült, elhagyva az elavult XML alapú nézeteket:
+- **`DashboardScreen`**: A fő elrendezést biztosító képernyő, amely a ViewModel állapotát figyeli (`collectAsState()`).
+- **`StatCard`**: Újrafelhasználható kártyakomponens a CPU, RAM, tárhely és üzemidő kiemelésére egyedi színekkel és lekerekített sarkokkal.
+- **`ServerCard`**: A virtuális gépeket és konténereket megjelenítő kártya, amely zöld ("Online") vagy szürke ("Offline") címkével jelzi a futási státuszt.
+- **`SettingsDialog`**: Párbeszédablak, ahol a szerver IP-címe és az API kulcs futásidejűleg módosítható (így emulátoron és fizikai eszközön is könnyen használható).
 
 ---
 
-## 5. Következő fejlesztési lépések
-A projekt következő lépéseiben a FastAPI backend (v0.2.0) megvalósítása és a Retrofit 2 REST kliens beépítése (v0.3.0) fog megtörténni, amellyel a jelenlegi mintaadatokat élő szervermetrikák váltják fel.
+## 5. Tesztelési eredmények és a megvalósított rendszer bemutatása
+
+A rendszert éles környezetben, valós Proxmox VE szerverrel és Android Studio emulátorral teszteltük:
+
+1. **Automatizált backend tesztek:**
+   - 9 db automatizált `pytest` teszt ellenőrzi a végpontok működését, a sikeres válaszokat, a hiányzó és érvénytelen hitelesítést (HTTP 401), valamint az elérhetetlen Proxmox szerver hibakezelését (HTTP 502).
+2. **Élő rendszereredmények:**
+   - **Gazdagép csomópont:** `prox`
+   - **CPU:** 12 processzormag (1.4% kihasználtság)
+   - **Memória:** 10.8 GB / 15.3 GB RAM (70.3%)
+   - **Háttértár:** 15.8 GB / 67.7 GB (23.3%)
+   - **Üzemidő:** 14 nap, 22 óra
+   - **Erőforrások:** Mind a 19 virtuális gép és LXC konténer (`haos`, `debian`, `qbittorrent`, `sonarr`, `radarr`, `jellyfin`, `adguard`, `vaultwarden`, `nginx-ui` stb.) sikeresen lekérdezésre és listázásra került.
+
+---
+
+## 6. Összegzés és következtetések
+
+A beadandó készítése során sikerült egy teljes, működőképes és biztonságos mobil infrastruktúra-felügyeleti alkalmazást megvalósítani. A projekt rávilágított a RESTful API-k, az aszinkron szálkezelés (Coroutines) és a típusbiztos JSON-deszerializáció fontosságára a modern Android szoftverfejlesztésben.
+
+A választott architektúra egyszerű, átlátható, mentes a felesleges túlbonyolításoktól, miközben teljes mértékben megfelel a modern iparági és egyetemi elvárásoknak.

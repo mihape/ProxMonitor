@@ -1,21 +1,21 @@
 # ProxMonitor
 
-> **Miskolci Egyetem – Mobilprogramozás tantárgyi beadandó**  
+> **Miskolci Egyetem – Mobilprogramozás tantárgyi beadandó (FOSZ)**  
 > **Témakör:** REST API és JSON-feldolgozás Android-alkalmazásokban  
 > **Szerző:** Mihalek Péter  
-> **Aktuális verzió:** v0.3.0 (Android REST API és JSON-feldolgozás élő adatokkal)
+> **Aktuális verzió:** v0.3.0 (Teljesen működő Android kliens + FastAPI backend élő Proxmox kapcsolatban)
 
 ---
 
 ## 1. A projekt célja
 
-A **ProxMonitor** egy modern, natív Android-alkalmazás, amely egy otthoni vagy intézményi **Proxmox Virtual Environment (PVE)** szerver állapotának valós idejű megfigyelését teszi lehetővé mobil eszközről.
+A **ProxMonitor** egy modern, natív Android-alkalmazás, amely egy otthoni vagy intézményi **Proxmox Virtual Environment (PVE)** hipervizor állapotának valós idejű megfigyelését teszi lehetővé mobil eszközről.
 
-A rendszer célja, hogy a szerverüzemeltető vagy rendszergazda közvetlen webes felületre lépés nélkül, egy kézre álló mobilalkalmazásban ellenőrizhesse:
-- A fizikai csomópont (node) hardveres kihasználtságát (CPU, memória, háttértár).
-- A futó virtuális gépek (QEMU/KVM VM) és konténerek (LXC) állapotát és erőforrás-fogyasztását.
+A rendszer célja, hogy a szerverüzemeltető közvetlen webes felületre lépés nélkül, egy kézre álló mobilalkalmazásban ellenőrizhesse:
+- A fizikai csomópont (node) hardveres kihasználtságát (12 CPU mag terhelése, memória- és háttértár-foglaltság, szerver üzemidő).
+- A futó virtuális gépek (QEMU VM) és konténerek (LXC) állapotát (Online/Offline) és azok memóriafogyasztását.
 
-A projekt kiemelt oktatási célja a **kliens-szerver architektúra**, a **RESTful hálózati kommunikáció**, az aszinkron **JSON-deszerializáció**, valamint a modern deklaratív **Jetpack Compose** felhasználói felület gyakorlati bemutatása.
+A projekt a **Mobilprogramozás** tantárgy követelményeinek megfelelően a **RESTful hálózati kommunikáció**, az aszinkron **JSON-deszerializáció**, valamint a modern deklaratív **Jetpack Compose** felületépítés és egyszerű **MVVM** architektúra gyakorlati megvalósítását mutatja be.
 
 ---
 
@@ -24,34 +24,47 @@ A projekt kiemelt oktatási célja a **kliens-szerver architektúra**, a **RESTf
 A rendszer három fő komponensből áll:
 
 ```text
-┌─────────────────────────┐
-│   Android Kliens        │ (Kotlin + Jetpack Compose + Retrofit)
-└────────────┬────────────┘
-             │ HTTPS / REST (JSON)
-             ▼
-┌─────────────────────────┐
-│   Köztes Backend API    │ (Python + FastAPI) [Tervezett – 2. fázis]
-└────────────┬────────────┘
-             │ Proxmox REST API (API Token Auth)
-             ▼
-┌─────────────────────────┐
-│   Proxmox VE Szerver    │ (PVE Node + QEMU VM + LXC)
-└─────────────────────────┘
+┌─────────────────────────────────┐
+│       ANDROID MOBIL KLIENS      │
+│  - Jetpack Compose & Material 3 │
+│  - MainViewModel & UiState      │
+│  - Retrofit 2 & Gson konverter  │
+└────────────────┬────────────────┘
+                 │ HTTP / REST (JSON)
+                 │ Fejléc: X-API-Key: <kulcs>
+                 ▼
+┌─────────────────────────────────┐
+│       KÖZTES BACKEND API        │
+│  - Python 3 + FastAPI           │
+│  - Pydantic v2 adatmodellek     │
+│  - Biztonságos tokenkezelés     │
+└────────────────┬────────────────┘
+                 │ HTTPS / REST (PVE API)
+                 │ Fejléc: PVEAPIToken=root@pam!mobile=UUID
+                 ▼
+┌─────────────────────────────────┐
+│       PROXMOX VE HYPERVISOR     │
+│  - Fizikai gazdagép ('prox')    │
+│  - 19 db QEMU VM és LXC konténer│
+└─────────────────────────────────┘
 ```
 
 ### Felhasznált technológiák:
 
 - **Mobil kliens (Android):**
   - **Nyelv:** Kotlin (100%-ban típusbiztos, null-safe)
-  - **UI keretrendszer:** Jetpack Compose & Material 3 (deklaratív felületépítés)
-  - **Architektúra:** MVVM (Model-View-ViewModel) állapotkezelés [Tervezett integráció: v0.3.0]
-  - **Hálózatkezelés:** Retrofit 2 & OkHttp 3, Kotlinx Serialization / Gson [Tervezett integráció: v0.3.0]
-  - **Build rendszer:** Gradle (Kotlin DSL - `.kts`)
+  - **UI keretrendszer:** Jetpack Compose & Material 3 (deklaratív felület)
+  - **Architektúra:** Egyszerű MVVM (Model-View-ViewModel) `StateFlow` állapotkezeléssel
+  - **Hálózatkezelés:** Retrofit 2, OkHttp 3 és Gson Converter (JSON-feldolgozás)
+  - **Aszinkronitás:** Kotlin Coroutines (`viewModelScope.launch`, `suspend fun`)
+  - **Build rendszer:** Gradle Kotlin DSL (`.kts`)
 
-- **Köztes Backend (Tervezett – v0.2.0):**
-  - **Nyelv & Keretrendszer:** Python 3 + FastAPI
-  - **Hitelesítés:** Proxmox API Token (PVEAPIToken) biztonságos, szerveroldali tárolása
-  - **Szerepe:** Védi a Proxmox API hitelesítő adatait; egyszerűsített, kifejezetten a mobilra optimalizált JSON válaszokat ad.
+- **Köztes Backend (Python / FastAPI):**
+  - **Keretrendszer:** FastAPI & Uvicorn aszinkron ASGI szerver
+  - **Adatvalidáció:** Pydantic v2 modellek
+  - **Proxmox kommunikáció:** `httpx` aszinkron HTTP kliens
+  - **Hitelesítés:** `X-API-Key` vagy `Authorization: Bearer`
+  - **Biztonság:** A Proxmox API token kizárólag a szerver `.env` fájljában található, az Android APK nem tartalmaz szervertitkokat.
 
 ---
 
@@ -60,49 +73,56 @@ A rendszer három fő komponensből áll:
 | Funkció | Leírás | Állapot |
 | :--- | :--- | :--- |
 | **Összesítő műszerfal** | Főképernyő a szerver állapotának áttekintésére | **Kész (v0.1.0)** |
-| **CPU terhelés kártya** | Pillanatnyi processzorkihasználtság és magok száma | **Kész (Élő adatokkal - v0.3.0)** |
-| **Memória kártya** | Felhasznált / összes RAM és százalékos arány | **Kész (Élő adatokkal - v0.3.0)** |
-| **Tárhely kártya** | Merevlemez/tárterület foglaltság és százalék | **Kész (Élő adatokkal - v0.3.0)** |
-| **VM / LXC lista kártyák** | Név, VMID, típus (VM/LXC), memória és státusz | **Kész (19 élő entitás - v0.3.0)** |
+| **CPU terhelés kártya** | Processzorterheltség és magok száma (12 mag) | **Kész (Élő adatokkal - v0.3.0)** |
+| **Memória kártya** | RAM használat és százalék (10.8 GB / 15.3 GB) | **Kész (Élő adatokkal - v0.3.0)** |
+| **Tárhely kártya** | Háttértár foglaltság és százalék (15.8 GB / 67.7 GB) | **Kész (Élő adatokkal - v0.3.0)** |
+| **Szerver üzemidő** | Emberi formátumban kijelzett üzemidő (14 nap...) | **Kész (Élő adatokkal - v0.3.0)** |
+| **VM / LXC lista kártyák** | 19 db valós entitás (`haos`, `debian`, `jellyfin` stb.) | **Kész (Élő adatokkal - v0.3.0)** |
 | **FastAPI köztes réteg** | Python mikroszolgáltatás a PVE API lekérdezésére | **Kész (v0.2.0)** |
 | **Dinamikus REST API hívás**| Valós idejű adatok lekérése a telefonról (Retrofit) | **Kész (v0.3.0)** |
-| **Hiba- és állapotkezelés** | Betöltésjelző, hálózati hibák, újrapróbálkozás | **Kész (v0.3.0)** |
+| **Hiba- és állapotkezelés** | Töltésjelző, hálózati hiba, Újrapróbálkozás gomb | **Kész (v0.3.0)** |
+| **Kapcsolati beállítások** | Szerver IP és kulcs futásidejű módosítása (⚙ gomb) | **Kész (v0.3.0)** |
 
 ---
 
 ## 4. Képernyőképek
 
-Az alkalmazás az élő Proxmox VE adatokkal futva az Android emulátoron (v0.3.0):
-
+### Élő működés a valódi Proxmox szerver adataival (v0.3.0):
 ![ProxMonitor Élő Dashboard](screenshots/dashboard_v0.3.0_live.png)
 
 ---
 
-## 5. Telepítés és futtatás
+## 5. Telepítés és indítás
 
-### Követelmények:
-- Android Studio Ladybug / Meerkat vagy újabb
-- Android SDK (minSdk: 26 - Android 8.0 Oreo, targetSdk: 36)
-- Java 11 / JDK 17+ (a Gradle futtatásához)
+### 5.1. A Python backend indítása (Fejlesztői gép)
 
-### Fordítás parancssorból (Windows PowerShell):
-```powershell
-# Debug APK fordítása
-.\gradlew.bat assembleDebug
+1. Lépj be a backend könyvtárba, és másold le a konfigurációt:
+   ```powershell
+   cd backend
+   Copy-Item .env.example .env
+   ```
+2. Töltsd ki a `.env` fájlban a Proxmox szervered adatait (`PROXMOX_HOST`, `PROXMOX_TOKEN_ID`, `PROXMOX_TOKEN_SECRET`).
+3. Indítsd el a szervert:
+   ```powershell
+   .\.venv\Scripts\python run.py
+   ```
+4. A szerver a `http://127.0.0.1:8000` címen fut. A Swagger UI automatikusan elérhető a böngészőben: `http://127.0.0.1:8000/docs`.
 
-# Tesztek futtatása
-.\gradlew.bat test
-```
+### 5.2. Az Android alkalmazás fordítása és futtatása
 
-A lefordított APK fájl helye:
-`app/build/outputs/apk/debug/app-debug.apk`
+- Nyisd meg a projekt gyökerét Android Studio-ban, vagy fordítsd parancssorból:
+  ```powershell
+  .\gradlew.bat assembleDebug
+  ```
+- Indítsd el az alkalmazást egy Android emulátorban vagy fizikai eszközön:
+  - **Android Emulátorban:** Automatikusan a `http://10.0.2.2:8000/` címet használja a gazdagép eléréséhez.
+  - **Fizikai telefonon:** Az alkalmazás jobb felső sarkában található **⚙ Beállítások** gombbal add meg a számítógéped helyi Wi-Fi IP-címét (pl. `http://192.168.1.150:8000/`).
 
 ---
 
-## 6. Dokumentáció
+## 6. Szakmai dokumentáció
 
-A részletes egyetemi és szakmai dokumentáció a [`docs/`](docs/) mappában található:
+A tantárgyhoz kapcsolódó részletes szakmai dokumentumok a [`docs/`](docs/) mappában találhatók:
 - [Rendszerarchitektúra és adatáramlás](docs/architecture.md)
-- [REST API specifikáció](docs/api.md)
-- [Tantárgyi beadandó dolgozat](docs/beadando.md)
-- [Szóbeli védési segédlet és vizsgakérdések](docs/vedes.md)
+- [REST API specifikáció és JSON szerkezetek](docs/api.md)
+- [Tantárgyi szakmai beadandó dolgozat](docs/beadando.md)

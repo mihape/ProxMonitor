@@ -46,3 +46,7 @@ tokens/
 .DS_Store
 Thumbs.db
 Desktop.ini
+
+# Privát védési segédlet (nem publikus a repóban)
+docs/vedes.md
+*vedes*.md
