@@ -232,16 +232,98 @@ fun SuccessContent(
   )
 
   StatCard(
-    title = "Tárhely (${status.storage.usage_percent}%)",
-    value = status.storage.formatted,
-    color = Color(0xFFF59E0B)
-  )
-
-  StatCard(
     title = "Szerver üzemidő",
     value = status.uptime_formatted,
     color = Color(0xFFA855F7)
   )
+
+  Spacer(modifier = Modifier.height(8.dp))
+
+  val pools = status.storage_pools ?: emptyList()
+  val poolsCount = if (pools.isNotEmpty()) pools.size else 1
+
+  Text(
+    text = "Háttértárak és Lemezek ($poolsCount db)",
+    fontSize = 18.sp,
+    fontWeight = FontWeight.Bold,
+    color = textColor
+  )
+
+  if (pools.isNotEmpty()) {
+    pools.forEach { pool ->
+      val poolColor = when {
+        pool.usage_percent >= 90.0 -> Color(0xFFEF4444)
+        pool.usage_percent >= 75.0 -> Color(0xFFF59E0B)
+        else -> Color(0xFF38BDF8)
+      }
+
+      val friendlyType = when (pool.type) {
+        "lvmthin" -> "SSD LVM Tároló"
+        "dir" -> if (pool.total_bytes > 1024L * 1024L * 1024L * 1024L) "4 TB Belső HDD" else "SSD Rendszer / Adat"
+        "nfs", "cifs" -> "Hálózati NAS"
+        else -> pool.type.uppercase()
+      }
+
+      Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF182235))
+      ) {
+        Column(
+          modifier = Modifier.padding(16.dp),
+          verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Column {
+              Text(
+                text = pool.name,
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp
+              )
+              Text(
+                text = friendlyType,
+                color = Color.Gray,
+                fontSize = 12.sp
+              )
+            }
+
+            Text(
+              text = "${pool.usage_percent}%",
+              color = poolColor,
+              fontWeight = FontWeight.Bold,
+              fontSize = 17.sp
+            )
+          }
+
+          LinearProgressIndicator(
+            progress = { (pool.usage_percent / 100.0).toFloat().coerceIn(0f, 1f) },
+            modifier = Modifier
+              .fillMaxWidth()
+              .height(6.dp),
+            color = poolColor,
+            trackColor = Color(0xFF0F172A)
+          )
+
+          Text(
+            text = pool.formatted,
+            color = Color.LightGray,
+            fontSize = 12.sp
+          )
+        }
+      }
+    }
+  } else {
+    StatCard(
+      title = "Tárhely (${status.storage.usage_percent}%)",
+      value = status.storage.formatted,
+      color = Color(0xFFF59E0B)
+    )
+  }
 
   Spacer(modifier = Modifier.height(12.dp))
 

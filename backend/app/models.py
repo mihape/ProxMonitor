@@ -26,11 +26,22 @@ class MemoryStatus(BaseModel):
 
 
 class StorageStatus(BaseModel):
-    """Háttértár-használati adatok."""
+    """Háttértár-használati adatok (összesített vagy gyökér)."""
     used_bytes: int = Field(..., ge=0, description="Felhasznált lemezterület bájtban")
     total_bytes: int = Field(..., ge=0, description="Összes lemezterület bájtban")
     formatted: str = Field(..., description="Ember által olvasható formátum (pl. 1.8 TB / 4 TB)")
     usage_percent: float = Field(..., ge=0.0, le=100.0, description="Tárhelyhasználat százalékban")
+
+
+class StoragePoolItem(BaseModel):
+    """Egyedi háttértár (pl. SSD gyökér, LVM tároló, 4TB HDD, NAS)."""
+    name: str = Field(..., description="Tárhely azonosítója (pl. local, local-lvm, torrent)")
+    type: str = Field(default="dir", description="Tárhely típusa (pl. dir, lvmthin, nfs, cifs)")
+    used_bytes: int = Field(default=0, ge=0, description="Felhasznált lemezterület bájtban")
+    total_bytes: int = Field(default=0, ge=0, description="Összes kapacitás bájtban")
+    formatted: str = Field(..., description="Formázott méret (pl. 3.1 TB / 3.7 TB)")
+    usage_percent: float = Field(default=0.0, ge=0.0, le=100.0, description="Kihasználtság százalékban")
+    content: Optional[str] = Field(default="", description="Tárolt tartalomtípusok")
 
 
 class ServerStatusResponse(BaseModel):
@@ -42,6 +53,7 @@ class ServerStatusResponse(BaseModel):
     cpu: CpuStatus = Field(..., description="CPU statisztikák")
     memory: MemoryStatus = Field(..., description="Memória statisztikák")
     storage: StorageStatus = Field(..., description="Tárhely statisztikák")
+    storage_pools: List[StoragePoolItem] = Field(default_factory=list, description="Részletes tárolók listája (SSD, HDD, NAS)")
 
 
 class ResourceItem(BaseModel):

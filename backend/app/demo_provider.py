@@ -4,6 +4,7 @@ from app.models import (
     CpuStatus,
     MemoryStatus,
     StorageStatus,
+    StoragePoolItem,
     ServerStatusResponse,
     ResourceItem,
     ResourcesResponse,
@@ -33,6 +34,35 @@ def get_demo_server_status() -> ServerStatusResponse:
             formatted="1.8 TB / 4 TB",
             usage_percent=45.0,
         ),
+        storage_pools=[
+            StoragePoolItem(
+                name="local",
+                type="dir",
+                used_bytes=16941498368,
+                total_bytes=72722055168,
+                formatted="15.8 GB / 67.7 GB",
+                usage_percent=23.3,
+                content="Rendszer, ISO, Mentések (SSD)",
+            ),
+            StoragePoolItem(
+                name="local-lvm",
+                type="lvmthin",
+                used_bytes=158037017257,
+                total_bytes=168824930304,
+                formatted="147.2 GB / 157.2 GB",
+                usage_percent=93.6,
+                content="Virtuális lemezek (SSD)",
+            ),
+            StoragePoolItem(
+                name="torrent",
+                type="dir",
+                used_bytes=3402823540736,
+                total_bytes=3936818806784,
+                formatted="3.1 TB / 3.7 TB",
+                usage_percent=86.4,
+                content="Adattároló (4 TB HDD)",
+            ),
+        ],
     )
 
 

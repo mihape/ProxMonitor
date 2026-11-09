@@ -11,7 +11,18 @@ data class ServerStatusResponse(
     val uptime_formatted: String,
     val cpu: CpuInfo,
     val memory: MemoryInfo,
-    val storage: StorageInfo
+    val storage: StorageInfo,
+    val storage_pools: List<StoragePoolItem>? = null
+)
+
+data class StoragePoolItem(
+    val name: String,
+    val type: String,
+    val used_bytes: Long,
+    val total_bytes: Long,
+    val formatted: String,
+    val usage_percent: Double,
+    val content: String? = null
 )
 
 data class CpuInfo(

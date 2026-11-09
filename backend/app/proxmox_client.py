@@ -7,6 +7,7 @@ from app.models import (
     CpuStatus,
     MemoryStatus,
     StorageStatus,
+    StoragePoolItem,
     ServerStatusResponse,
     ResourceItem,
     ResourcesResponse,
@@ -167,6 +168,41 @@ class ProxmoxClient:
         # Üzemidő
         uptime_sec = int(data.get("uptime", 0))
 
+        # Részletes tárolók lekérdezése (/api2/json/nodes/{node}/storage)
+        storage_pools: List[StoragePoolItem] = []
+        try:
+            async with httpx.AsyncClient(**self._get_client_kwargs()) as client:
+                st_resp = await client.get(f"{self.host}/api2/json/nodes/{self.node}/storage")
+                if st_resp.status_code == 200:
+                    st_data = st_resp.json().get("data", [])
+                    for item in st_data:
+                        # Csak az aktív / engedélyezett tárolókat vesszük figyelembe
+                        if item.get("enabled", 1) == 1 and item.get("active", 1) == 1:
+                            s_name = item.get("storage", "")
+                            s_type = item.get("type", "dir")
+                            s_used = int(item.get("used", 0))
+                            s_total = int(item.get("total", 0))
+                            s_content = item.get("content", "")
+                            s_percent = round((s_used / s_total) * 100.0, 1) if s_total > 0 else 0.0
+                            s_fmt = f"{_format_bytes(s_used)} / {_format_bytes(s_total)}" if s_total > 0 else "0 B"
+
+                            storage_pools.append(
+                                StoragePoolItem(
+                                    name=s_name,
+                                    type=s_type,
+                                    used_bytes=s_used,
+                                    total_bytes=s_total,
+                                    formatted=s_fmt,
+                                    usage_percent=s_percent,
+                                    content=s_content,
+                                )
+                            )
+        except Exception:
+            pass  # Ha a részletes lekérés nem sikerülne, a gyökér tárhelyadat megmarad
+
+        # Tárhelyek rendezése név szerint
+        storage_pools.sort(key=lambda s: s.name)
+
         return ServerStatusResponse(
             mode="LIVE",
             node_name=self.node,
@@ -188,6 +224,7 @@ class ProxmoxClient:
                 formatted=disk_formatted,
                 usage_percent=disk_percent,
             ),
+            storage_pools=storage_pools,
         )
 
     async def get_cluster_resources(self) -> ResourcesResponse:
