@@ -19,10 +19,6 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/**
- * Egységtesztek a JSON-adatmodellek deszerializációjához, az URL-validációhoz,
- * valamint a MainViewModel sikeres (LIVE) és sikertelen állapotkezeléséhez.
- */
 class ExampleUnitTest {
 
     private val gson = Gson()

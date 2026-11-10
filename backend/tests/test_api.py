@@ -1,24 +1,20 @@
-"""FastAPI végpontok automatizált integrációs és egységtesztjei."""
-
+from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import patch, AsyncMock, MagicMock
+from app.config import AppMode, settings
 from app.main import app
-from app.config import settings, AppMode
 from app.models import (
     CpuStatus,
     MemoryStatus,
-    StorageStatus,
-    StoragePoolItem,
-    ServerStatusResponse,
     ResourceItem,
     ResourcesResponse,
+    ServerStatusResponse,
+    StoragePoolItem,
+    StorageStatus,
 )
 from app.proxmox_client import ProxmoxClient, ProxmoxConnectionError
 
-
-# Tesztekhez egyedi, nem alapértelmezett API-kulcsot állítunk be
 VALID_API_KEY = "teszt-egyedi-api-kulcs-2026"
 settings.api_key = VALID_API_KEY
 settings.mode = AppMode.DEMO
@@ -31,7 +27,6 @@ BEARER_HEADERS = {"Authorization": f"Bearer {VALID_API_KEY}"}
 
 @pytest.fixture(autouse=True)
 def restore_settings():
-    """Minden teszt előtt és után visszaállítja az alapértelmezett tesztbeállításokat."""
     settings.mode = AppMode.DEMO
     settings.api_key = VALID_API_KEY
     settings.proxmox_host = "https://192.168.1.99:8006"
@@ -43,12 +38,7 @@ def restore_settings():
     settings.api_key = VALID_API_KEY
 
 
-# ==============================================================================
-# 1. /health végpont tesztek
-# ==============================================================================
-
 def test_health_check_returns_200():
-    """A /health végpont hitelesítés nélkül is elérhető és helyes JSON-t ad."""
     response = client.get("/health")
     assert response.status_code == 200
     data = response.json()
@@ -57,46 +47,32 @@ def test_health_check_returns_200():
     assert data["version"] == "0.3.0"
 
 
-# ==============================================================================
-# 2. Hitelesítési tesztek (Hiányzó és Hibás kulcs)
-# ==============================================================================
-
 def test_status_missing_auth_returns_401():
-    """Hiányzó hitelesítő fejléccel a /api/v1/status 401-es kódot ad."""
     response = client.get("/api/v1/status")
     assert response.status_code == 401
     assert "Hitelesítés szükséges" in response.json()["detail"]
 
 
 def test_status_invalid_auth_returns_401():
-    """Hibás API kulccsal a /api/v1/status 401-es kódot ad."""
     response = client.get("/api/v1/status", headers={"X-API-Key": "hibas-kulcs-123"})
     assert response.status_code == 401
     assert "Érvénytelen API kulcs" in response.json()["detail"]
 
 
 def test_resources_missing_auth_returns_401():
-    """Hiányzó hitelesítő fejléccel a /api/v1/resources 401-es kódot ad."""
     response = client.get("/api/v1/resources")
     assert response.status_code == 401
 
 
 def test_resources_invalid_bearer_returns_401():
-    """Hibás Bearer tokennel a /api/v1/resources 401-es kódot ad."""
     response = client.get(
         "/api/v1/resources",
-        headers={"Authorization": "Bearer rossz-bearer-token"}
+        headers={"Authorization": "Bearer rossz-bearer-token"},
     )
     assert response.status_code == 401
 
 
-# ==============================================================================
-# 3. Sikeres lekérdezések (DEMO üzemmód)
-# ==============================================================================
-
 def test_status_demo_mode_success():
-    """DEMO módban érvényes hitelesítéssel a válasz helyes és a mintaadatokat tartalmazza."""
-    # Biztosítjuk, hogy DEMO módban vagyunk
     settings.mode = AppMode.DEMO
 
     response = client.get("/api/v1/status", headers=AUTH_HEADERS)
@@ -113,7 +89,6 @@ def test_status_demo_mode_success():
 
 
 def test_resources_demo_mode_success():
-    """DEMO módban Bearer tokennel a virtuális gépek listája sikeresen megérkezik."""
     settings.mode = AppMode.DEMO
 
     response = client.get("/api/v1/resources", headers=BEARER_HEADERS)
@@ -124,7 +99,6 @@ def test_resources_demo_mode_success():
     resources = data["resources"]
     assert len(resources) == 3
 
-    # Az Android UI-nak megfelelő elemek ellenőrzése
     names = [r["name"] for r in resources]
     assert "Home Assistant" in names
     assert "Jellyfin" in names
@@ -136,12 +110,7 @@ def test_resources_demo_mode_success():
     assert first["display_status"] == "Online"
 
 
-# ==============================================================================
-# 4. LIVE üzemmód: Konfigurációs és Proxmox kapcsolati hibák
-# ==============================================================================
-
 def test_live_mode_missing_config_returns_500():
-    """Ha LIVE módban nincsenek beállítva a Proxmox adatok, 500-as hibát kapunk."""
     settings.mode = AppMode.LIVE
     settings.proxmox_host = None
     settings.proxmox_token_id = None
@@ -151,22 +120,14 @@ def test_live_mode_missing_config_returns_500():
     assert response.status_code == 500
     assert "Érvénytelen szerverkonfiguráció" in response.json()["detail"]
 
-    # Visszaállítjuk DEMO-ra a többi teszthez
-    settings.mode = AppMode.DEMO
-
 
 def test_live_mode_unreachable_proxmox_returns_502_and_no_demo_leak():
-    """
-    FONTOS KÖVETELMÉNY:
-    Ha a LIVE módban a Proxmox nem elérhető, az API-nak 502/504 hibával kell visszatérnie,
-    és SOHA nem térhet vissza észrevétlenül a mintaadatokra!
-    """
+    """LIVE módban elérhetetlen Proxmox esetén 502-es hibát kell adni, mintaadat-szivárgás nélkül."""
     settings.mode = AppMode.LIVE
     settings.proxmox_host = "https://192.168.1.99:8006"
     settings.proxmox_token_id = "user@pam!token"
     settings.proxmox_token_secret = "secret-uuid"
 
-    # Szimuláljuk a sikertelen hálózati kapcsolatot
     with patch(
         "app.proxmox_client.ProxmoxClient.get_node_status",
         new_callable=AsyncMock,
@@ -177,7 +138,6 @@ def test_live_mode_unreachable_proxmox_returns_502_and_no_demo_leak():
     ):
         response = client.get("/api/v1/status", headers=AUTH_HEADERS)
 
-        # Ellenőrizzük, hogy nem 200 (nem esett vissza mintaadatra!)
         assert response.status_code == 502
         err_data = response.json()
         assert "error" in err_data
@@ -195,7 +155,6 @@ def test_live_mode_unreachable_proxmox_returns_502_and_no_demo_leak():
     ],
 )
 def test_live_mode_rejects_default_or_known_api_keys(insecure_key: str):
-    """LIVE módban a backend nem indulhat el / nem szolgálhat ki kérést ismert alapértelmezett API-kulccsal."""
     settings.mode = AppMode.LIVE
     settings.api_key = insecure_key
 
@@ -209,7 +168,6 @@ def test_live_mode_rejects_default_or_known_api_keys(insecure_key: str):
 
 
 def test_live_mode_status_and_resources_success():
-    """LIVE módban sikeres Proxmox válasz esetén a végpontok LIVE adatokat adnak vissza."""
     settings.mode = AppMode.LIVE
 
     mock_status = ServerStatusResponse(
@@ -287,7 +245,7 @@ def test_live_mode_status_and_resources_success():
 
 @pytest.mark.asyncio
 async def test_proxmox_client_does_not_leak_internal_host_or_raw_error():
-    """A ProxmoxClient hiba esetén nem szivárogtathatja ki a belső Proxmox IP-t vagy nyers hibaüzenetet."""
+    """Hiba esetén a belső Proxmox IP-cím és a nyers kivétel nem szivároghat ki a kliens felé."""
     settings.mode = AppMode.LIVE
     settings.proxmox_host = "https://10.99.88.77:8006"
     proxmox = ProxmoxClient()

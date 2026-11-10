@@ -1,18 +1,17 @@
-"""Mintaadat-szolgáltató (DEMO mód) a fejlesztéshez és Proxmox nélküli bemutatóhoz."""
+"""Statikus mintaadatok DEMO üzemmódhoz."""
 
 from app.models import (
     CpuStatus,
     MemoryStatus,
-    StorageStatus,
-    StoragePoolItem,
-    ServerStatusResponse,
     ResourceItem,
     ResourcesResponse,
+    ServerStatusResponse,
+    StoragePoolItem,
+    StorageStatus,
 )
 
 
 def get_demo_server_status() -> ServerStatusResponse:
-    """Visszaadja a statikus mintaadatokat a szerver állapotáról."""
     return ServerStatusResponse(
         mode="DEMO",
         node_name="pve-demo-node",
@@ -67,7 +66,6 @@ def get_demo_server_status() -> ServerStatusResponse:
 
 
 def get_demo_resources() -> ResourcesResponse:
-    """Visszaadja a virtuális gépek és konténerek mintaadatait."""
     return ResourcesResponse(
         mode="DEMO",
         resources=[

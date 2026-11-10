@@ -1,9 +1,5 @@
 package hu.petermihalek.proxmonitor.network
 
-/**
- * A Proxmox szerver általános állapotának adatmodellje.
- * A backend GET /api/v1/status végpontjának JSON válaszát képezi le.
- */
 data class ServerStatusResponse(
     val mode: String,
     val node_name: String,
@@ -44,10 +40,6 @@ data class StorageInfo(
     val usage_percent: Double
 )
 
-/**
- * A virtuális gépek és konténerek listájának adatmodellje.
- * A backend GET /api/v1/resources végpontjának JSON válaszát képezi le.
- */
 data class ResourcesResponse(
     val mode: String,
     val resources: List<ResourceItem>

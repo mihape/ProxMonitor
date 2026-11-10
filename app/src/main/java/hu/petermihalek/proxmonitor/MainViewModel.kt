@@ -14,12 +14,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-/**
- * A képernyő lehetséges állapotai (Sealed interface):
- * - Loading: Adatok lekérdezése folyamatban van (töltésjelző).
- * - Success: Sikeres válasz mindkét végpontról (megjeleníthető adatok).
- * - Error: Hálózati vagy szerverhiba (hibaüzenet + újrapróbálkozás).
- */
 sealed interface UiState {
     object Loading : UiState
     data class Success(
@@ -29,11 +23,6 @@ sealed interface UiState {
     data class Error(val message: String) : UiState
 }
 
-/**
- * A főképernyő ViewModel-je (MVVM architektúra).
- * Felelős az adatok aszinkron lekéréséért Coroutine-ok segítségével,
- * valamint az állapot (UiState) életciklus-biztos megőrzéséért.
- */
 class MainViewModel(
     private val apiProvider: () -> ApiService,
     private val urlUpdater: (String) -> String,
@@ -54,10 +43,9 @@ class MainViewModel(
     private val _uiState = MutableStateFlow<UiState>(UiState.Loading)
     val uiState: StateFlow<UiState> = _uiState
 
-    // Aktuális hálózati lekérdezés Coroutine Job-ja a versenyhelyzetek elkerüléséhez
+    // Korábbi futó lekérdezés megszakítása a versenyhelyzetek (race condition) elkerülésére
     private var loadJob: Job? = null
 
-    // Alapértelmezett kapcsolati beállítások (beégetett titok nélkül)
     var serverUrl: String = RetrofitInstance.baseUrl
         private set
 
@@ -70,10 +58,6 @@ class MainViewModel(
         }
     }
 
-    /**
-     * Beállítások (szervercím és kulcs) biztonságos frissítése, majd adatok újratöltése.
-     * Hibás URL esetén nem omlik össze az alkalmazás, hanem hibaállapotba kerül.
-     */
     fun updateSettings(newUrl: String, newApiKey: String) {
         loadJob?.cancel()
         serverUrl = newUrl.trim()
@@ -81,11 +65,6 @@ class MainViewModel(
         loadData()
     }
 
-    /**
-     * Lekéri a szerver állapotát és az erőforrások listáját a háttérben.
-     * Megszakítja az esetlegesen még futó korábbi lekérdezést, így gyors frissítésnél
-     * vagy szerverváltásnál a régi válasz nem írhatja felül az új állapotot.
-     */
     fun loadData() {
         loadJob?.cancel()
         val targetUrl = serverUrl
