@@ -1,12 +1,22 @@
-"""ProxMonitor FastAPI Backend - Fő alkalmazásbelépési pont és végpontok."""
-
+from contextlib import asynccontextmanager
+import logging
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.responses import JSONResponse, RedirectResponse
-from app.config import AppMode, settings
 from app.auth import verify_api_key
-from app.models import HealthResponse, ServerStatusResponse, ResourcesResponse
-from app.demo_provider import get_demo_server_status, get_demo_resources
+from app.config import AppMode, settings
+from app.demo_provider import get_demo_resources, get_demo_server_status
+from app.models import HealthResponse, ResourcesResponse, ServerStatusResponse
 from app.proxmox_client import ProxmoxClient, ProxmoxConnectionError
+
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    if settings.mode == AppMode.LIVE:
+        settings.validate_live_config()
+    yield
+
 
 app = FastAPI(
     title="ProxMonitor REST API",
@@ -14,15 +24,15 @@ app = FastAPI(
         "A ProxMonitor projekt backend szolgáltatása, amely a Proxmox VE "
         "erőforrás-adatait és állapotát közvetíti a mobilalkalmazás felé."
     ),
-    version="0.2.0",
+    version="0.3.0",
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 
 @app.get("/", include_in_schema=False)
 async def root():
-    """A gyökér URL megnyitásakor automatikusan átirányít a Swagger felületre (/docs)."""
     return RedirectResponse(url="/docs")
 
 
@@ -30,7 +40,6 @@ async def root():
 async def proxmox_connection_exception_handler(
     request: Request, exc: ProxmoxConnectionError
 ) -> JSONResponse:
-    """Központi hibakezelő a Proxmox kapcsolati és hitelesítési hibákhoz."""
     return JSONResponse(
         status_code=exc.status_code,
         content={
@@ -54,7 +63,7 @@ async def health_check() -> HealthResponse:
     return HealthResponse(
         status="online",
         application="ProxMonitor",
-        version="0.2.0",
+        version="0.3.0",
     )
 
 
@@ -74,13 +83,13 @@ async def get_status(
     if settings.mode == AppMode.DEMO:
         return get_demo_server_status()
 
-    # LIVE üzemmód
     try:
         settings.validate_live_config()
     except ValueError as e:
+        logger.error("Érvénytelen LIVE szerverkonfiguráció (/api/v1/status): %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Érvénytelen szerverkonfiguráció: {e}",
+            detail="Érvénytelen szerverkonfiguráció a backend oldalon.",
         )
 
     client = ProxmoxClient()
@@ -103,13 +112,13 @@ async def get_resources(
     if settings.mode == AppMode.DEMO:
         return get_demo_resources()
 
-    # LIVE üzemmód
     try:
         settings.validate_live_config()
     except ValueError as e:
+        logger.error("Érvénytelen LIVE szerverkonfiguráció (/api/v1/resources): %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Érvénytelen szerverkonfiguráció: {e}",
+            detail="Érvénytelen szerverkonfiguráció a backend oldalon.",
         )
 
     client = ProxmoxClient()

@@ -101,12 +101,12 @@ A rendszer három fő komponensből áll:
    cd backend
    Copy-Item .env.example .env
    ```
-2. Töltsd ki a `.env` fájlban a Proxmox szervered adatait (`PROXMOX_HOST`, `PROXMOX_TOKEN_ID`, `PROXMOX_TOKEN_SECRET`).
+2. Töltsd ki a `.env` fájlban az egyedi mobil API-kulcsot (`PROXMONITOR_API_KEY`), valamint `LIVE` módban a Proxmox szervered adatait (`PROXMOX_HOST`, `PROXMOX_TOKEN_ID`, `PROXMOX_TOKEN_SECRET`). Éles (`LIVE`) módban a backend nem indul el az alapértelmezett példakulccsal.
 3. Indítsd el a szervert:
    ```powershell
    .\.venv\Scripts\python run.py
    ```
-4. A szerver a `http://127.0.0.1:8000` címen fut. A Swagger UI automatikusan elérhető a böngészőben: `http://127.0.0.1:8000/docs`.
+4. A szerver alapértelmezetten a biztonságos `http://127.0.0.1:8000` címen fut. A Swagger UI elérhető a böngészőben: `http://127.0.0.1:8000/docs`.
 
 ### 5.2. Az Android alkalmazás fordítása és futtatása
 
@@ -114,9 +114,9 @@ A rendszer három fő komponensből áll:
   ```powershell
   .\gradlew.bat assembleDebug
   ```
-- Indítsd el az alkalmazást egy Android emulátorban vagy fizikai eszközön:
-  - **Android Emulátorban:** Automatikusan a `http://10.0.2.2:8000/` címet használja a gazdagép eléréséhez.
-  - **Fizikai telefonon:** Az alkalmazás jobb felső sarkában található **⚙ Beállítások** gombbal add meg a számítógéped helyi Wi-Fi IP-címét (pl. `http://192.168.1.150:8000/`).
+- Indítsd el az alkalmazást, majd a jobb felső sarokban található **⚙ Beállítások** gombbal add meg a `.env` fájlban beállított `PROXMONITOR_API_KEY` kulcsot:
+  - **Android Emulátorban:** Alapértelmezetten a `http://10.0.2.2:8000/` címet használja, amely közvetlenül eléri a gazdagép `127.0.0.1:8000` portját.
+  - **Távoli / éles eléréskor:** Az alkalmazás `network_security_config.xml` szabályai szerint külső címekhez HTTPS kapcsolatot vár el (pl. reverse proxy mögött).
 
 ---
 

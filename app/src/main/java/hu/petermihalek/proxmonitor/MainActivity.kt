@@ -4,10 +4,10 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -15,6 +15,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -58,7 +60,6 @@ fun DashboardScreen(viewModel: MainViewModel) {
       verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
 
-      // FEJLÉC: Cím, állapotjelző és gombok
       Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -83,14 +84,12 @@ fun DashboardScreen(viewModel: MainViewModel) {
           horizontalArrangement = Arrangement.spacedBy(4.dp),
           verticalAlignment = Alignment.CenterVertically
         ) {
-          // Beállítások gomb (Szerver IP és API kulcs megadása)
           TextButton(
             onClick = { showSettingsDialog = true }
           ) {
             Text("⚙", fontSize = 18.sp, color = Color.LightGray)
           }
 
-          // Frissítés gomb
           Button(
             onClick = { viewModel.loadData() },
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
@@ -101,7 +100,6 @@ fun DashboardScreen(viewModel: MainViewModel) {
         }
       }
 
-      // ÜZEMMÓD BADGE (Élő mód vagy Bemutató mód)
       when (val state = uiState) {
         is UiState.Success -> {
           val isLive = state.status.mode.equals("LIVE", ignoreCase = true)
@@ -127,7 +125,6 @@ fun DashboardScreen(viewModel: MainViewModel) {
 
       Spacer(modifier = Modifier.height(4.dp))
 
-      // ÁLLAPOTFÜGGŐ TARTALOM (Loading, Error, Success)
       when (val state = uiState) {
         is UiState.Loading -> {
           Box(
@@ -191,7 +188,6 @@ fun DashboardScreen(viewModel: MainViewModel) {
     }
   }
 
-  // BEÁLLÍTÁSOK PÁRBESZÉDABLAK (IP cím és API kulcs)
   if (showSettingsDialog) {
     SettingsDialog(
       currentUrl = viewModel.serverUrl,
@@ -471,7 +467,9 @@ fun SettingsDialog(
           value = keyText,
           onValueChange = { keyText = it },
           label = { Text("API Kulcs (X-API-Key)") },
-          singleLine = true
+          singleLine = true,
+          visualTransformation = PasswordVisualTransformation(),
+          keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
         )
       }
     },

@@ -10,8 +10,6 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
-import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
@@ -31,7 +29,6 @@ private val LightColorScheme = lightColorScheme(
 @Composable
 fun ProxMonitorTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
@@ -50,7 +47,7 @@ fun ProxMonitorTheme(
         SideEffect {
             val window = (view.context as? Activity)?.window
             window?.let {
-                // A sötét háttérhez (0xFF0B1220) világos státuszsáv ikonok szükségesek a kontraszt miatt
+                // Sötét hátterű felülethez világos státuszsáv-ikonok beállítása
                 it.statusBarColor = android.graphics.Color.parseColor("#0B1220")
                 WindowCompat.getInsetsController(it, view).isAppearanceLightStatusBars = false
             }

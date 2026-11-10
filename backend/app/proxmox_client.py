@@ -1,21 +1,21 @@
-"""Proxmox VE REST API kliens a valós szerveradatok lekérdezéséhez."""
-
-from typing import Any, Dict, List, Optional
+import logging
+from typing import Any, Dict, List
 import httpx
 from app.config import settings
 from app.models import (
     CpuStatus,
     MemoryStatus,
-    StorageStatus,
-    StoragePoolItem,
-    ServerStatusResponse,
     ResourceItem,
     ResourcesResponse,
+    ServerStatusResponse,
+    StoragePoolItem,
+    StorageStatus,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class ProxmoxConnectionError(Exception):
-    """Kivétel, ha a Proxmox VE szerver nem érhető el vagy hibát jelez."""
     def __init__(self, message: str, status_code: int = 502):
         super().__init__(message)
         self.message = message
@@ -23,7 +23,6 @@ class ProxmoxConnectionError(Exception):
 
 
 def _format_bytes(bytes_value: int) -> str:
-    """Bájtok ember által könnyen olvasható formázása (GB / TB)."""
     if bytes_value >= 1024 ** 4:
         return f"{bytes_value / (1024 ** 4):.1f} TB"
     elif bytes_value >= 1024 ** 3:
@@ -34,7 +33,6 @@ def _format_bytes(bytes_value: int) -> str:
 
 
 def _format_uptime(seconds: int) -> str:
-    """Üzemidő másodpercekből nap, óra, perc formátumba konvertálása."""
     days = seconds // 86400
     hours = (seconds % 86400) // 3600
     minutes = (seconds % 3600) // 60
@@ -46,7 +44,7 @@ def _format_uptime(seconds: int) -> str:
 
 
 class ProxmoxClient:
-    """Aszinkron HTTP kliens a Proxmox VE REST API-hoz."""
+    """Aszinkron HTTP-kliens a Proxmox VE REST API (`PVEAPIToken`) eléréséhez."""
 
     def __init__(self) -> None:
         self.host = settings.proxmox_host.rstrip("/") if settings.proxmox_host else ""
@@ -55,13 +53,11 @@ class ProxmoxClient:
         self.token_secret = settings.proxmox_token_secret or ""
 
     def _get_client_kwargs(self) -> Dict[str, Any]:
-        """Összeállítja a httpx.AsyncClient paramétereit (SSL, Timeout, Fejlécek)."""
         headers = {
             "Authorization": f"PVEAPIToken={self.token_id}={self.token_secret}",
             "Accept": "application/json",
         }
 
-        # SSL hitelesítés kezelése
         if settings.proxmox_ca_cert:
             ssl_verify: Any = settings.proxmox_ca_cert
         else:
@@ -74,7 +70,6 @@ class ProxmoxClient:
         }
 
     async def _get_available_nodes(self, client: httpx.AsyncClient) -> List[str]:
-        """Lekérdezi az elérhető csomópontok (node-ok) neveit a Proxmox klaszterből."""
         try:
             resp = await client.get(f"{self.host}/api2/json/nodes")
             if resp.status_code == 200:
@@ -85,90 +80,94 @@ class ProxmoxClient:
         return []
 
     async def get_node_status(self) -> ServerStatusResponse:
-        """
-        Lekérdezi a node állapotát a Proxmox '/api2/json/nodes/{node}/status' végpontjáról.
-        Ha a megadott node név nem létezik, automatikusan felderíti az érvényes neveket.
-        """
+        """Csomópont állapotának lekérdezése; eltérő node-név esetén egycsomópontos automatikus felderítéssel."""
         url = f"{self.host}/api2/json/nodes/{self.node}/status"
 
         try:
             async with httpx.AsyncClient(**self._get_client_kwargs()) as client:
                 response = await client.get(url)
 
-                # Ha a megadott node név hibát dobott, megpróbáljuk lekérdezni az elérhető node-okat
                 if response.status_code != 200:
                     available = await self._get_available_nodes(client)
-                    if available:
-                        if self.node not in available:
-                            # Ha csak egyetlen node létezik (tipikus egynode-os Proxmox), próbáljuk meg azzal
-                            if len(available) == 1:
-                                actual_node = available[0]
-                                retry_resp = await client.get(f"{self.host}/api2/json/nodes/{actual_node}/status")
-                                if retry_resp.status_code == 200:
-                                    self.node = actual_node
-                                    response = retry_resp
-                            
-                            if response.status_code != 200:
-                                raise ProxmoxConnectionError(
-                                    f"A(z) '{self.node}' nevű csomópont nem található a Proxmox szerveren! "
-                                    f"Az elérhető csomópont(ok): {', '.join(available)}. "
-                                    f"Kérlek javítsd a .env fájlban: PROXMOX_NODE={available[0]}",
-                                    status_code=502,
-                                )
+                    if available and self.node not in available:
+                        # Egynode-os Proxmox környezetben automatikus átállás az egyetlen elérhető csomópontra
+                        if len(available) == 1:
+                            actual_node = available[0]
+                            retry_resp = await client.get(f"{self.host}/api2/json/nodes/{actual_node}/status")
+                            if retry_resp.status_code == 200:
+                                self.node = actual_node
+                                response = retry_resp
+
+                        if response.status_code != 200:
+                            logger.error(
+                                "A(z) '%s' csomópont nem található (%s). Elérhető csomópontok: %s",
+                                self.node,
+                                self.host,
+                                ", ".join(available),
+                            )
+                            raise ProxmoxConnectionError(
+                                "A megadott Proxmox csomópont nem található a szerveren.",
+                                status_code=502,
+                            )
         except httpx.ConnectError as e:
+            logger.error("Proxmox kapcsolódási hiba (%s): %s", self.host, e)
             raise ProxmoxConnectionError(
-                f"Nem sikerült csatlakozni a Proxmox szerverhez ({self.host}): Kapcsolódási hiba ({e}).",
+                "Nem sikerült csatlakozni a Proxmox szerverhez.",
                 status_code=502,
             )
-        except httpx.TimeoutException:
+        except httpx.TimeoutException as e:
+            logger.error("Proxmox időtúllépés (%s): %s", self.host, e)
             raise ProxmoxConnectionError(
-                f"Időtúllépés a Proxmox szerver elérésekor ({self.host}).",
+                "Időtúllépés a Proxmox szerver elérésekor.",
                 status_code=504,
             )
         except ProxmoxConnectionError:
             raise
         except Exception as e:
+            logger.error("Hálózati hiba a Proxmox kommunikáció során (%s): %s", self.host, e)
             raise ProxmoxConnectionError(
-                f"Hálózati hiba a Proxmox kommunikáció során: {e}",
+                "Hálózati hiba történt a Proxmox kommunikáció során.",
                 status_code=502,
             )
 
         if response.status_code == 401 or response.status_code == 403:
+            logger.error("Proxmox hitelesítési hiba (%s): HTTP %s", self.host, response.status_code)
             raise ProxmoxConnectionError(
-                "Proxmox hitelesítési hiba: Érvénytelen API token (PVEAPIToken). Ellenőrizd a PROXMOX_TOKEN_ID és PROXMOX_TOKEN_SECRET értékeket!",
+                "A Proxmox szerver elutasította a hitelesítést.",
                 status_code=502,
             )
         elif response.status_code != 200:
+            logger.error(
+                "Proxmox HTTP hiba a node status lekérésekor (%s): HTTP %s (%s)",
+                self.host,
+                response.status_code,
+                response.text,
+            )
             raise ProxmoxConnectionError(
-                f"A Proxmox szerver hibakódot adott: HTTP {response.status_code} ({response.text})",
+                "A Proxmox szerver hibát jelzett az állapot lekérdezésekor.",
                 status_code=502,
             )
 
         data = response.json().get("data", {})
 
-        # CPU adatok
         raw_cpu = data.get("cpu", 0.0)
         cpu_percent = round(float(raw_cpu) * 100.0, 1)
         cpu_cores = data.get("cpuinfo", {}).get("cpus", 1)
 
-        # Memória adatok
         mem_info = data.get("memory", {})
         mem_used = int(mem_info.get("used", 0))
         mem_total = int(mem_info.get("total", 1))
         mem_percent = round((mem_used / mem_total) * 100.0, 1) if mem_total > 0 else 0.0
         mem_formatted = f"{_format_bytes(mem_used)} / {_format_bytes(mem_total)}"
 
-        # Háttértár adatok (rootfs)
         rootfs_info = data.get("rootfs", {})
         disk_used = int(rootfs_info.get("used", 0))
         disk_total = int(rootfs_info.get("total", 1))
         disk_percent = round((disk_used / disk_total) * 100.0, 1) if disk_total > 0 else 0.0
         disk_formatted = f"{_format_bytes(disk_used)} / {_format_bytes(disk_total)}"
 
-        # Üzemidő
         uptime_sec = int(data.get("uptime", 0))
 
-        # Részletes tárolók lekérdezése (/api2/json/nodes/{node}/storage)
         storage_pools: List[StoragePoolItem] = []
         try:
             async with httpx.AsyncClient(**self._get_client_kwargs()) as client:
@@ -176,7 +175,7 @@ class ProxmoxClient:
                 if st_resp.status_code == 200:
                     st_data = st_resp.json().get("data", [])
                     for item in st_data:
-                        # Csak az aktív / engedélyezett tárolókat vesszük figyelembe
+                        # Csak az aktív és engedélyezett tárolók szerepelnek a kimutatásban
                         if item.get("enabled", 1) == 1 and item.get("active", 1) == 1:
                             s_name = item.get("storage", "")
                             s_type = item.get("type", "dir")
@@ -198,9 +197,9 @@ class ProxmoxClient:
                                 )
                             )
         except Exception:
-            pass  # Ha a részletes lekérés nem sikerülne, a gyökér tárhelyadat megmarad
+            # Részletes tárolólekérdezés hibája esetén a gyökérpartíció (rootfs) adatai elegendőek
+            pass
 
-        # Tárhelyek rendezése név szerint
         storage_pools.sort(key=lambda s: s.name)
 
         return ServerStatusResponse(
@@ -228,33 +227,45 @@ class ProxmoxClient:
         )
 
     async def get_cluster_resources(self) -> ResourcesResponse:
-        """
-        Lekérdezi a virtuális gépeket és konténereket a '/api2/json/cluster/resources?type=vm' végpontról.
-        """
         url = f"{self.host}/api2/json/cluster/resources?type=vm"
 
         try:
             async with httpx.AsyncClient(**self._get_client_kwargs()) as client:
                 response = await client.get(url)
         except httpx.ConnectError as e:
+            logger.error("Proxmox kapcsolódási hiba (%s): %s", self.host, e)
             raise ProxmoxConnectionError(
-                f"Nem sikerült csatlakozni a Proxmox szerverhez ({self.host}): Kapcsolódási hiba ({e}).",
+                "Nem sikerült csatlakozni a Proxmox szerverhez.",
                 status_code=502,
             )
-        except httpx.TimeoutException:
+        except httpx.TimeoutException as e:
+            logger.error("Proxmox időtúllépés (%s): %s", self.host, e)
             raise ProxmoxConnectionError(
-                f"Időtúllépés a Proxmox szerver elérésekor ({self.host}).",
+                "Időtúllépés a Proxmox szerver elérésekor.",
                 status_code=504,
             )
         except Exception as e:
+            logger.error("Hálózati hiba a Proxmox kommunikáció során (%s): %s", self.host, e)
             raise ProxmoxConnectionError(
-                f"Hálózati hiba a Proxmox kommunikáció során: {e}",
+                "Hálózati hiba történt a Proxmox kommunikáció során.",
                 status_code=502,
             )
 
-        if response.status_code != 200:
+        if response.status_code == 401 or response.status_code == 403:
+            logger.error("Proxmox hitelesítési hiba (%s): HTTP %s", self.host, response.status_code)
             raise ProxmoxConnectionError(
-                f"A Proxmox szerver hibakódot adott a cluster/resources hívásra: HTTP {response.status_code}",
+                "A Proxmox szerver elutasította a hitelesítést.",
+                status_code=502,
+            )
+        elif response.status_code != 200:
+            logger.error(
+                "Proxmox HTTP hiba az erőforrások lekérésekor (%s): HTTP %s (%s)",
+                self.host,
+                response.status_code,
+                response.text,
+            )
+            raise ProxmoxConnectionError(
+                "A Proxmox szerver hibát jelzett az erőforrások lekérdezésekor.",
                 status_code=502,
             )
 
@@ -286,7 +297,6 @@ class ProxmoxClient:
                 )
             )
 
-        # VMID szerint rendezve
         resources_list.sort(key=lambda r: r.vmid)
 
         return ResourcesResponse(

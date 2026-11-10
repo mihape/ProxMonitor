@@ -3,10 +3,6 @@ package hu.petermihalek.proxmonitor.network
 import retrofit2.http.GET
 import retrofit2.http.Header
 
-/**
- * Retrofit interfész a REST API végpontok meghívásához.
- * A metódusok 'suspend' kulcsszóval vannak ellátva, hogy Coroutine-ból lehessen őket hívni.
- */
 interface ApiService {
 
     @GET("api/v1/status")

@@ -1,11 +1,8 @@
-"""Hitelesítési modul az API végpontok védelmére."""
-
-from fastapi import Header, HTTPException, Security, status
-from fastapi.security import APIKeyHeader, HTTPBearer, HTTPAuthorizationCredentials
 from typing import Optional
+from fastapi import HTTPException, Security, status
+from fastapi.security import APIKeyHeader, HTTPAuthorizationCredentials, HTTPBearer
 from app.config import settings
 
-# Fejlécek támogatása: 'X-API-Key: ...' és 'Authorization: Bearer ...'
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -14,10 +11,7 @@ async def verify_api_key(
     api_key_header_val: Optional[str] = Security(api_key_header),
     bearer_auth: Optional[HTTPAuthorizationCredentials] = Security(bearer_scheme),
 ) -> str:
-    """
-    Ellenőrzi a kliens által küldött API kulcsot.
-    Elfogadja mind az 'X-API-Key' fejlécet, mind az 'Authorization: Bearer <token>' fejlécet.
-    """
+    """API-kulcs hitelesítése 'X-API-Key' vagy 'Authorization: Bearer' fejlécből."""
     token_to_check = None
 
     if api_key_header_val:
