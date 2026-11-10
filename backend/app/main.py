@@ -24,7 +24,7 @@ app = FastAPI(
         "A ProxMonitor projekt backend szolgáltatása, amely a Proxmox VE "
         "erőforrás-adatait és állapotát közvetíti a mobilalkalmazás felé."
     ),
-    version="0.3.0",
+    version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
     lifespan=lifespan,
@@ -63,7 +63,7 @@ async def health_check() -> HealthResponse:
     return HealthResponse(
         status="online",
         application="ProxMonitor",
-        version="0.3.0",
+        version="1.0.0",
     )
 
 

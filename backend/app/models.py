@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 class HealthResponse(BaseModel):
     status: str = Field(default="online", description="A szolgáltatás állapota")
     application: str = Field(default="ProxMonitor", description="Alkalmazás neve")
-    version: str = Field(default="0.3.0", description="Backend verzió")
+    version: str = Field(default="1.0.0", description="Backend verzió")
 
 
 class CpuStatus(BaseModel):

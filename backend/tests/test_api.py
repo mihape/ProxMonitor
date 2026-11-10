@@ -44,7 +44,7 @@ def test_health_check_returns_200():
     data = response.json()
     assert data["status"] == "online"
     assert data["application"] == "ProxMonitor"
-    assert data["version"] == "0.3.0"
+    assert data["version"] == "1.0.0"
 
 
 def test_status_missing_auth_returns_401():

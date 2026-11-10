@@ -1,16 +1,16 @@
 # REST API Specifikáció
 
-Ez a dokumentum a **ProxMonitor** projekt **FastAPI backend** (`v0.3.0`) által biztosított REST API végpontokat és azok tényleges JSON adatformátumait írja le.
+Ez a dokumentum a **ProxMonitor** projekt **FastAPI backend** (`v1.0.0`) által biztosított REST API végpontokat és azok tényleges JSON adatformátumait írja le.
 
 ---
 
 ## 1. Alapbeállítások és protokoll
 
-- **Protokoll:**
-  - Éles / távoli környezetben: **HTTPS** (pl. reverse proxy mögött, `127.0.0.1:8000` belső kötéssel)
-  - Helyi fejlesztői környezetben (Android Emulátor): `http://10.0.2.2:8000/` (`network_security_config.xml` alapján engedélyezett helyi kivétel)
+- **Protokoll és elérési módok:**
+  - **Fizikai Android telefonról (tesztelt éles elérés):** **HTTPS** kapcsolaton, **Tailscale** hálózaton keresztül (`https://<laptop-nev>.<tailnet>.ts.net/`), amely a Windows-laptopon futó FastAPI backend (`127.0.0.1:8000`) elé biztosít TLS végpontot.
+  - **Helyi fejlesztői környezetben (Android Emulátor):** `http://10.0.2.2:8000/` (`network_security_config.xml` alapján engedélyezett helyi kivétel).
 - **Adatformátum:** JSON (`Content-Type: application/json; charset=utf-8`)
-- **Hitelesítés:** `X-API-Key: <kulcs>` vagy `Authorization: Bearer <kulcs>` HTTP fejléc (a `/health` végpont kivételével kötelező)
+- **Hitelesítés:** `X-API-Key: <kulcs>` vagy `Authorization: Bearer <kulcs>` HTTP fejléc (a `/health` végpont kivételével minden végponton kötelező).
 
 ---
 
@@ -28,7 +28,7 @@ Nyilvános végpont a backend szolgáltatás elérhetőségének és verzióján
 {
   "status": "online",
   "application": "ProxMonitor",
-  "version": "0.3.0"
+  "version": "1.0.0"
 }
 ```
 

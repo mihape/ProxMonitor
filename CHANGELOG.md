@@ -6,6 +6,22 @@ A formátum a [Keep a Changelog](https://keepachangelog.com/hu/1.0.0/) elveit k�
 
 ---
 
+## [v1.0.0] - 2026-11-10
+
+### Hozzáadva és véglegesítve
+- **Végleges `v1.0.0` beadási kiadás:**
+  - Verziószámok egységesítése `1.0.0`-ra az Android alkalmazásban (`versionCode = 4`, `versionName = "1.0.0"`), a FastAPI backendben (`/health` és OpenAPI specifikáció) és a dokumentációban.
+  - Fizikai telefonos elérés hitelesített tesztelése: a Windows-laptopon futó FastAPI backend (`127.0.0.1:8000`) Tailscale-en keresztül, HTTPS végpontként érhető el az Android telefonról.
+- **Biztonsági és hálózati megerősítések:**
+  - Beégetett kliensoldali API-kulcs eltávolítása; alapértelmezett vagy visszavont kulcsok szigorú tiltása `LIVE` üzemmódban (`validate_live_config`).
+  - Robusztus URL-normalizálás és validáció (`RetrofitInstance.normalizeBaseUrl`), valamint `network_security_config.xml` alapú HTTPS kényszerítés minden nem helyi (pl. Tailscale) kapcsolatra.
+  - Párhuzamos lekérdezések versenyhelyzetének (race condition) kiküszöbölése Coroutine `Job` megszakítással a `MainViewModel`-ben.
+- **Tesztelés és kódtisztítás:**
+  - 15 db automatizált `pytest` backend teszt és 6 db Android JUnit egységteszt (`ExampleUnitTest.kt`).
+  - Forráskód és kommentek szakmai tisztítása, egységesítése, valamint a `README.md` telepítési lépéseinek kiegészítése tiszta klónozás utáni futtatáshoz.
+
+---
+
 ## [v0.3.0] - 2026-11-09
 
 ### Hozzáadva
