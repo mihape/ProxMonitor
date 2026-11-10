@@ -1,15 +1,29 @@
 """Konfigurációs beállítások betöltése környezeti változókból vagy .env fájlból."""
 
 from enum import Enum
+import hashlib
 from pathlib import Path
 from typing import Optional
-from pydantic import Field, field_validator
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class AppMode(str, Enum):
     DEMO = "DEMO"
     LIVE = "LIVE"
+
+
+# Ismert alapértelmezett API-kulcsok, amelyekkel a LIVE mód nem indulhat el
+INSECURE_DEFAULT_API_KEYS = {
+    "",
+    "titkos-mobil-api-kulcs-valtoztasd-meg",
+    "changeme",
+}
+
+# Korábban forráskódba került és visszavont kulcsok SHA-256 lenyomata (nyílt szöveg tárolása nélkül)
+REVOKED_API_KEY_SHA256 = {
+    "eb87f400e3f2736d7c49cd4b5b012a988101c64ca6e691709333e97c05509198",
+}
 
 
 class Settings(BaseSettings):
@@ -29,8 +43,8 @@ class Settings(BaseSettings):
     proxmox_verify_ssl: bool = Field(default=True, alias="PROXMOX_VERIFY_SSL")
     proxmox_ca_cert: Optional[str] = Field(default=None, alias="PROXMOX_CA_CERT")
 
-    # Hálózati kiszolgáló beállítások (0.0.0.0 = elérhető a helyi Wi-Fi hálózatról is, pl. telefonról)
-    host: str = Field(default="0.0.0.0", alias="PROXMONITOR_HOST")
+    # Hálózati kiszolgáló beállítások (alapértelmezetten 127.0.0.1 a biztonságos helyi/emulátoros eléréshez)
+    host: str = Field(default="127.0.0.1", alias="PROXMONITOR_HOST")
     port: int = Field(default=8000, alias="PROXMONITOR_PORT")
 
     model_config = SettingsConfigDict(
@@ -40,8 +54,16 @@ class Settings(BaseSettings):
     )
 
     def validate_live_config(self) -> None:
-        """Ellenőrzi, hogy LIVE módban megvannak-e a szükséges Proxmox beállítások."""
+        """Ellenőrzi, hogy LIVE módban megvannak-e a szükséges és biztonságos beállítások."""
         if self.mode == AppMode.LIVE:
+            normalized_key = (self.api_key or "").strip()
+            key_hash = hashlib.sha256(normalized_key.encode("utf-8")).hexdigest()
+            if normalized_key in INSECURE_DEFAULT_API_KEYS or key_hash in REVOKED_API_KEY_SHA256:
+                raise ValueError(
+                    "A LIVE üzemmód nem használható üres vagy ismert alapértelmezett "
+                    "PROXMONITOR_API_KEY értékkel! Állíts be egyedi, erős API-kulcsot a .env fájlban."
+                )
+
             missing = []
             if not self.proxmox_host:
                 missing.append("PROXMOX_HOST")

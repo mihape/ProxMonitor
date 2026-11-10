@@ -93,10 +93,12 @@ A válaszok deszerializációját a **Gson Converter** végzi. A beérkező szö
 data class ServerStatusResponse(
     val mode: String,
     val node_name: String,
+    val uptime_seconds: Long,
     val uptime_formatted: String,
     val cpu: CpuInfo,
     val memory: MemoryInfo,
-    val storage: StorageInfo
+    val storage: StorageInfo,
+    val storage_pools: List<StoragePoolItem>? = null
 )
 ```
 
@@ -123,8 +125,9 @@ Az alkalmazás teljes egészében a legújabb deklaratív **Jetpack Compose** te
 
 A rendszert éles környezetben, valós Proxmox VE szerverrel és Android Studio emulátorral teszteltük:
 
-1. **Automatizált backend tesztek:**
-   - 9 db automatizált `pytest` teszt ellenőrzi a végpontok működését, a sikeres válaszokat, a hiányzó és érvénytelen hitelesítést (HTTP 401), valamint az elérhetetlen Proxmox szerver hibakezelését (HTTP 502).
+1. **Automatizált backend és Android egységtesztek:**
+   - 15 db automatizált `pytest` teszt ellenőrzi a backend végpontok működését, a sikeres `DEMO` és `LIVE` válaszokat, a hiányzó és érvénytelen hitelesítést (HTTP 401), az alapértelmezett API-kulcs tiltását éles módban (HTTP 500), valamint az elérhetetlen Proxmox szerver szűrt hibakezelését (HTTP 502).
+   - 6 db Android JUnit egységteszt (`ExampleUnitTest.kt`) ellenőrzi a Gson JSON-deszerializációt, az URL-normalizálást, a `MainViewModel` sikeres (`LIVE`) és sikertelen lekéréseit, valamint a hibás kapcsolati beállítások összeomlásmentes kezelését.
 2. **Élő rendszereredmények:**
    - **Gazdagép csomópont:** `prox`
    - **CPU:** 12 processzormag (1.4% kihasználtság)

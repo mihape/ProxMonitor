@@ -1,5 +1,7 @@
 """ProxMonitor FastAPI Backend - Fő alkalmazásbelépési pont és végpontok."""
 
+from contextlib import asynccontextmanager
+import logging
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.responses import JSONResponse, RedirectResponse
 from app.config import AppMode, settings
@@ -8,15 +10,27 @@ from app.models import HealthResponse, ServerStatusResponse, ResourcesResponse
 from app.demo_provider import get_demo_server_status, get_demo_resources
 from app.proxmox_client import ProxmoxClient, ProxmoxConnectionError
 
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    """Indításkor ellenőrzi az éles (LIVE) konfiguráció biztonsági feltételeit."""
+    if settings.mode == AppMode.LIVE:
+        settings.validate_live_config()
+    yield
+
+
 app = FastAPI(
     title="ProxMonitor REST API",
     description=(
         "A ProxMonitor projekt backend szolgáltatása, amely a Proxmox VE "
         "erőforrás-adatait és állapotát közvetíti a mobilalkalmazás felé."
     ),
-    version="0.2.0",
+    version="0.3.0",
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 
@@ -54,7 +68,7 @@ async def health_check() -> HealthResponse:
     return HealthResponse(
         status="online",
         application="ProxMonitor",
-        version="0.2.0",
+        version="0.3.0",
     )
 
 
@@ -78,9 +92,10 @@ async def get_status(
     try:
         settings.validate_live_config()
     except ValueError as e:
+        logger.error("Érvénytelen LIVE szerverkonfiguráció (/api/v1/status): %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Érvénytelen szerverkonfiguráció: {e}",
+            detail="Érvénytelen szerverkonfiguráció a backend oldalon.",
         )
 
     client = ProxmoxClient()
@@ -107,9 +122,10 @@ async def get_resources(
     try:
         settings.validate_live_config()
     except ValueError as e:
+        logger.error("Érvénytelen LIVE szerverkonfiguráció (/api/v1/resources): %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Érvénytelen szerverkonfiguráció: {e}",
+            detail="Érvénytelen szerverkonfiguráció a backend oldalon.",
         )
 
     client = ProxmoxClient()

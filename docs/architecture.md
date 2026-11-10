@@ -21,8 +21,8 @@ A **ProxMonitor** projekt egy modern, háromrétegű elosztott architektúrára 
 ┌────────────────────────────────────────────────────────┐
 │               KÖZTES BACKEND (FastAPI / Python)        │
 │  - REST API végpontok kiszolgálása                     │
-│  - Proxmox API Token titkosított tárolása (.env)       │
-│  - Adattranszformáció és gyorsítótárazás (Cache)       │
+│  - Proxmox API Token biztonságos tárolása (.env)       │
+│  - Adattranszformáció és hibaszűrés                    │
 │  - Mobilra optimalizált, szűrt JSON válaszok           │
 └───────────────────────────┬────────────────────────────┘
                             │

@@ -8,7 +8,7 @@ class HealthResponse(BaseModel):
     """A /health végpont válaszmodellje."""
     status: str = Field(default="online", description="A szolgáltatás állapota")
     application: str = Field(default="ProxMonitor", description="Alkalmazás neve")
-    version: str = Field(default="0.2.0", description="Backend verzió")
+    version: str = Field(default="0.3.0", description="Backend verzió")
 
 
 class CpuStatus(BaseModel):

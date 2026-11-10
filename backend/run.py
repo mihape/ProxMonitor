@@ -12,6 +12,12 @@ if str(BASE_DIR) not in sys.path:
 from app.config import settings
 
 if __name__ == "__main__":
+    try:
+        settings.validate_live_config()
+    except ValueError as exc:
+        print(f"[HIBA] A szerver nem indítható el: {exc}", file=sys.stderr)
+        sys.exit(1)
+
     print(f"============================================================")
     print(f"  ProxMonitor Backend Szerver Indítása")
     print(f"  Üzemmód:      {settings.mode.value}")

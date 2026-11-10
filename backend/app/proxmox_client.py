@@ -1,6 +1,7 @@
 """Proxmox VE REST API kliens a valós szerveradatok lekérdezéséhez."""
 
-from typing import Any, Dict, List, Optional
+import logging
+from typing import Any, Dict, List
 import httpx
 from app.config import settings
 from app.models import (
@@ -12,6 +13,8 @@ from app.models import (
     ResourceItem,
     ResourcesResponse,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class ProxmoxConnectionError(Exception):
@@ -109,38 +112,52 @@ class ProxmoxClient:
                                     response = retry_resp
                             
                             if response.status_code != 200:
+                                logger.error(
+                                    "A(z) '%s' csomópont nem található (%s). Elérhető csomópontok: %s",
+                                    self.node,
+                                    self.host,
+                                    ", ".join(available),
+                                )
                                 raise ProxmoxConnectionError(
-                                    f"A(z) '{self.node}' nevű csomópont nem található a Proxmox szerveren! "
-                                    f"Az elérhető csomópont(ok): {', '.join(available)}. "
-                                    f"Kérlek javítsd a .env fájlban: PROXMOX_NODE={available[0]}",
+                                    "A megadott Proxmox csomópont nem található a szerveren.",
                                     status_code=502,
                                 )
         except httpx.ConnectError as e:
+            logger.error("Proxmox kapcsolódási hiba (%s): %s", self.host, e)
             raise ProxmoxConnectionError(
-                f"Nem sikerült csatlakozni a Proxmox szerverhez ({self.host}): Kapcsolódási hiba ({e}).",
+                "Nem sikerült csatlakozni a Proxmox szerverhez.",
                 status_code=502,
             )
-        except httpx.TimeoutException:
+        except httpx.TimeoutException as e:
+            logger.error("Proxmox időtúllépés (%s): %s", self.host, e)
             raise ProxmoxConnectionError(
-                f"Időtúllépés a Proxmox szerver elérésekor ({self.host}).",
+                "Időtúllépés a Proxmox szerver elérésekor.",
                 status_code=504,
             )
         except ProxmoxConnectionError:
             raise
         except Exception as e:
+            logger.error("Hálózati hiba a Proxmox kommunikáció során (%s): %s", self.host, e)
             raise ProxmoxConnectionError(
-                f"Hálózati hiba a Proxmox kommunikáció során: {e}",
+                "Hálózati hiba történt a Proxmox kommunikáció során.",
                 status_code=502,
             )
 
         if response.status_code == 401 or response.status_code == 403:
+            logger.error("Proxmox hitelesítési hiba (%s): HTTP %s", self.host, response.status_code)
             raise ProxmoxConnectionError(
-                "Proxmox hitelesítési hiba: Érvénytelen API token (PVEAPIToken). Ellenőrizd a PROXMOX_TOKEN_ID és PROXMOX_TOKEN_SECRET értékeket!",
+                "A Proxmox szerver elutasította a hitelesítést.",
                 status_code=502,
             )
         elif response.status_code != 200:
+            logger.error(
+                "Proxmox HTTP hiba a node status lekérésekor (%s): HTTP %s (%s)",
+                self.host,
+                response.status_code,
+                response.text,
+            )
             raise ProxmoxConnectionError(
-                f"A Proxmox szerver hibakódot adott: HTTP {response.status_code} ({response.text})",
+                "A Proxmox szerver hibát jelzett az állapot lekérdezésekor.",
                 status_code=502,
             )
 
@@ -237,24 +254,39 @@ class ProxmoxClient:
             async with httpx.AsyncClient(**self._get_client_kwargs()) as client:
                 response = await client.get(url)
         except httpx.ConnectError as e:
+            logger.error("Proxmox kapcsolódási hiba (%s): %s", self.host, e)
             raise ProxmoxConnectionError(
-                f"Nem sikerült csatlakozni a Proxmox szerverhez ({self.host}): Kapcsolódási hiba ({e}).",
+                "Nem sikerült csatlakozni a Proxmox szerverhez.",
                 status_code=502,
             )
-        except httpx.TimeoutException:
+        except httpx.TimeoutException as e:
+            logger.error("Proxmox időtúllépés (%s): %s", self.host, e)
             raise ProxmoxConnectionError(
-                f"Időtúllépés a Proxmox szerver elérésekor ({self.host}).",
+                "Időtúllépés a Proxmox szerver elérésekor.",
                 status_code=504,
             )
         except Exception as e:
+            logger.error("Hálózati hiba a Proxmox kommunikáció során (%s): %s", self.host, e)
             raise ProxmoxConnectionError(
-                f"Hálózati hiba a Proxmox kommunikáció során: {e}",
+                "Hálózati hiba történt a Proxmox kommunikáció során.",
                 status_code=502,
             )
 
-        if response.status_code != 200:
+        if response.status_code == 401 or response.status_code == 403:
+            logger.error("Proxmox hitelesítési hiba (%s): HTTP %s", self.host, response.status_code)
             raise ProxmoxConnectionError(
-                f"A Proxmox szerver hibakódot adott a cluster/resources hívásra: HTTP {response.status_code}",
+                "A Proxmox szerver elutasította a hitelesítést.",
+                status_code=502,
+            )
+        elif response.status_code != 200:
+            logger.error(
+                "Proxmox HTTP hiba az erőforrások lekérésekor (%s): HTTP %s (%s)",
+                self.host,
+                response.status_code,
+                response.text,
+            )
+            raise ProxmoxConnectionError(
+                "A Proxmox szerver hibát jelzett az erőforrások lekérdezésekor.",
                 status_code=502,
             )
 

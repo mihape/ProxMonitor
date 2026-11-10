@@ -1,95 +1,87 @@
 # REST API Specifikáció
 
-Ez a dokumentum a tervezett köztes **FastAPI backend** által biztosított REST API végpontokat és azok JSON adatformátumait írja le.
-
-> [!NOTE]
-> A végpontok implementálása a **v0.2.0** mérföldkő során valósul meg. Jelenleg az Android kliens a v0.1.0-ban definiált statikus mintaadatokkal szemlélteti az itt leírt struktúrát.
+Ez a dokumentum a **ProxMonitor** projekt **FastAPI backend** (`v0.3.0`) által biztosított REST API végpontokat és azok tényleges JSON adatformátumait írja le.
 
 ---
 
 ## 1. Alapbeállítások és protokoll
 
-- **Protokoll:** HTTPS (vagy helyi hálózaton HTTP fejlesztési célra)
+- **Protokoll:**
+  - Éles / távoli környezetben: **HTTPS** (pl. reverse proxy mögött, `127.0.0.1:8000` belső kötéssel)
+  - Helyi fejlesztői környezetben (Android Emulátor): `http://10.0.2.2:8000/` (`network_security_config.xml` alapján engedélyezett helyi kivétel)
 - **Adatformátum:** JSON (`Content-Type: application/json; charset=utf-8`)
-- **Alapértelmezett URI séma:** `https://<backend-host>/api/v1`
+- **Hitelesítés:** `X-API-Key: <kulcs>` vagy `Authorization: Bearer <kulcs>` HTTP fejléc (a `/health` végpont kivételével kötelező)
 
 ---
 
 ## 2. Végpontok részletezése
 
-### 2.1. Szerver összefoglaló állapot lekérdezése
+### 2.1. Backend állapotellenőrzés (Health Check)
 
-Visszaadja a gazdagép (Proxmox node) legfontosabb hardveres erőforrás-adatait.
+Nyilvános végpont a backend szolgáltatás elérhetőségének és verziójának ellenőrzésére.
 
-- **Útvonal:** `GET /api/v1/status`
-- **Hitelesítés:** API kulcs / Bearer token a fejlécben (`Authorization: Bearer <token>`)
+- **Útvonal:** `GET /health`
+- **Hitelesítés:** Nem szükséges
 
-#### Sikeres válasz (HTTP 200 OK):
+#### Sikeres válasz (`HTTP 200 OK`):
 ```json
 {
-  "node_name": "pve",
-  "uptime_seconds": 1284520,
-  "cpu": {
-    "usage_percent": 24.0,
-    "cores": 8
-  },
-  "memory": {
-    "used_bytes": 8804682956,
-    "total_bytes": 17179869184,
-    "formatted": "8.2 GB / 16 GB",
-    "usage_percent": 51.2
-  },
-  "storage": {
-    "used_bytes": 1979120929996,
-    "total_bytes": 4398046511104,
-    "formatted": "1.8 TB / 4 TB",
-    "usage_percent": 45.0
-  }
+  "status": "online",
+  "application": "ProxMonitor",
+  "version": "0.3.0"
 }
 ```
 
 ---
 
-### 2.2. Virtuális gépek és konténerek listája
+### 2.2. Szerver összefoglaló állapot lekérdezése
 
-Visszaadja a konfigurált virtuális gépek (VM) és konténerek (LXC) állapotát.
+Visszaadja a gazdagép (Proxmox node) legfontosabb hardveres erőforrás-adatait és az aktív háttértárak (storage poolok) listáját.
 
-- **Útvonal:** `GET /api/v1/resources`
-- **Hitelesítés:** Bearer token
+- **Útvonal:** `GET /api/v1/status`
+- **Hitelesítés:** `X-API-Key: <kulcs>` vagy `Authorization: Bearer <kulcs>`
 
-#### Sikeres válasz (HTTP 200 OK):
+#### Sikeres válasz (`HTTP 200 OK`):
 ```json
 {
-  "resources": [
+  "mode": "LIVE",
+  "node_name": "prox",
+  "uptime_seconds": 1284520,
+  "uptime_formatted": "14 nap, 20 óra, 48 perc",
+  "cpu": {
+    "usage_percent": 24.0,
+    "cores": 12
+  },
+  "memory": {
+    "used_bytes": 8804682956,
+    "total_bytes": 17179869184,
+    "formatted": "8.2 GB / 16.0 GB",
+    "usage_percent": 51.2
+  },
+  "storage": {
+    "used_bytes": 16941498368,
+    "total_bytes": 72722055168,
+    "formatted": "15.8 GB / 67.7 GB",
+    "usage_percent": 23.3
+  },
+  "storage_pools": [
     {
-      "vmid": 100,
-      "name": "Home Assistant",
-      "type": "qemu",
-      "display_type": "VM",
-      "status": "running",
-      "display_status": "Online",
-      "cpu_percent": 3.2,
-      "memory_used_bytes": 2147483648
+      "name": "local",
+      "type": "dir",
+      "used_bytes": 16941498368,
+      "total_bytes": 72722055168,
+      "formatted": "15.8 GB / 67.7 GB",
+      "usage_percent": 23.3,
+      "content": "iso,vztmpl,backup"
     },
     {
-      "vmid": 101,
-      "name": "Jellyfin",
-      "type": "lxc",
-      "display_type": "LXC",
-      "status": "running",
-      "display_status": "Online",
-      "cpu_percent": 12.5,
-      "memory_used_bytes": 4294967296
-    },
-    {
-      "vmid": 102,
-      "name": "AdGuard Home",
-      "type": "lxc",
-      "display_type": "LXC",
-      "status": "running",
-      "display_status": "Online",
-      "cpu_percent": 0.8,
-      "memory_used_bytes": 536870912
+      "name": "local-lvm",
+      "type": "lvmthin",
+      "used_bytes": 158037017257,
+      "total_bytes": 168824930304,
+      "formatted": "147.2 GB / 157.2 GB",
+      "usage_percent": 93.6,
+      "content": "images,rootdir"
     }
   ]
 }
@@ -97,22 +89,74 @@ Visszaadja a konfigurált virtuális gépek (VM) és konténerek (LXC) állapot�
 
 ---
 
-## 3. Hibakezelési szabvány (RFC 7807 alapú)
+### 2.3. Virtuális gépek és konténerek listája
 
-Hiba esetén az API szabványos JSON formátumú válaszobjektumot küld vissza megfelelő HTTP státuszkóddal:
+Visszaadja a konfigurált QEMU virtuális gépek (`VM`) és LXC konténerek (`LXC`) állapotát `vmid` szerint rendezve.
+
+- **Útvonal:** `GET /api/v1/resources`
+- **Hitelesítés:** `X-API-Key: <kulcs>` vagy `Authorization: Bearer <kulcs>`
+
+#### Sikeres válasz (`HTTP 200 OK`):
+```json
+{
+  "mode": "LIVE",
+  "resources": [
+    {
+      "vmid": 100,
+      "name": "Home Assistant",
+      "type": "VM",
+      "raw_type": "qemu",
+      "status": "running",
+      "display_status": "Online",
+      "cpu_percent": 3.2,
+      "memory_used_bytes": 2147483648,
+      "memory_formatted": "2.0 GB / 4.0 GB"
+    },
+    {
+      "vmid": 101,
+      "name": "Jellyfin",
+      "type": "LXC",
+      "raw_type": "lxc",
+      "status": "running",
+      "display_status": "Online",
+      "cpu_percent": 12.5,
+      "memory_used_bytes": 4294967296,
+      "memory_formatted": "4.0 GB / 8.0 GB"
+    },
+    {
+      "vmid": 102,
+      "name": "AdGuard Home",
+      "type": "LXC",
+      "raw_type": "lxc",
+      "status": "running",
+      "display_status": "Online",
+      "cpu_percent": 0.8,
+      "memory_used_bytes": 536870912,
+      "memory_formatted": "512.0 MB / 1.0 GB"
+    }
+  ]
+}
+```
+
+---
+
+## 3. Hibakezelés
+
+Proxmox kapcsolati hiba esetén a backend nem szivárogtat ki belső IP-címeket vagy nyers kivételeket, hanem egységes JSON hibaobjektumot küld vissza:
 
 ```json
 {
   "error": {
-    "code": "PROXMOX_UNREACHABLE",
-    "message": "A Proxmox VE szerver nem érhető el vagy időtúllépés történt.",
-    "status_code": 503
+    "type": "PROXMOX_CONNECTION_ERROR",
+    "message": "Nem sikerült csatlakozni a Proxmox szerverhez.",
+    "status_code": 502
   }
 }
 ```
 
-### Tipikus státuszkódok:
-- `200 OK`: A kérés sikeres, adatok mellékelve.
-- `401 Unauthorized`: Hiányzó vagy érvénytelen kliens token.
-- `502 Bad Gateway`: A FastAPI nem tud csatlakozni a Proxmox szerverhez.
-- `503 Service Unavailable`: A Proxmox szerver karbantartás alatt van vagy offline.
+### Alkalmazott HTTP státuszkódok:
+- `200 OK`: Sikeres lekérdezés, adatok mellékelve.
+- `401 Unauthorized`: Hiányzó vagy érvénytelen kliens API-kulcs (`detail` mezővel).
+- `500 Internal Server Error`: Hiányos vagy érvénytelen szerveroldali `LIVE` konfiguráció (`detail` mezővel).
+- `502 Bad Gateway`: A FastAPI backend nem tud csatlakozni a Proxmox VE szerverhez, vagy a Proxmox hibát jelzett.
+- `504 Gateway Timeout`: Időtúllépés a Proxmox VE szerver elérésekor.
