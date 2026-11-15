@@ -6,6 +6,18 @@ A formátum a [Keep a Changelog](https://keepachangelog.com/hu/1.0.0/) elveit k�
 
 ---
 
+## [v1.0.1] - 2026-11-15
+
+### Javítva
+- **Kapcsolati beállítások tartós és titkosított mentése (`ConnectionSettings.kt`, `MainViewModel.kt`, `MainActivity.kt`):**
+  - A szerver URL és az API-kulcs tartós mentése helyi `SharedPreferences` tárhelyre, így az alkalmazás folyamatának bezárása után is megmaradnak a beállítások.
+  - Az API-kulcs (`X-API-Key`) titkosított tárolása az Android Keystore által védett AES-256-GCM kulccsal (`SecureConnectionSettings`).
+  - A titkosított beállításfájl (`proxmonitor_connection_settings.xml`) kizárása a felhőalapú biztonsági mentésből és eszközátvitelből (`backup_rules.xml`, `data_extraction_rules.xml`).
+  - Új JUnit egységteszt (`ConnectionSettingsTest.kt`) a beállítások ViewModel-újralétrehozás utáni visszaállításának ellenőrzésére (összesen 7 Android JUnit teszt).
+  - Android verziószám léptetése `1.0.1`-re (`versionCode = 5`, `versionName = "1.0.1"`).
+
+---
+
 ## [v1.0.0] - 2026-11-10
 
 ### Hozzáadva és véglegesítve

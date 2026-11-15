@@ -27,7 +27,8 @@ class MainViewModel(
     private val apiProvider: () -> ApiService,
     private val urlUpdater: (String) -> String,
     private val customScope: CoroutineScope?,
-    autoLoad: Boolean = true
+    autoLoad: Boolean = true,
+    private val settingsRepository: ConnectionSettingsRepository? = null
 ) : ViewModel() {
 
     constructor() : this(
@@ -35,6 +36,14 @@ class MainViewModel(
         urlUpdater = { RetrofitInstance.updateBaseUrl(it) },
         customScope = null,
         autoLoad = true
+    )
+
+    constructor(settingsRepository: ConnectionSettingsRepository) : this(
+        apiProvider = { RetrofitInstance.getApi() },
+        urlUpdater = { RetrofitInstance.updateBaseUrl(it) },
+        customScope = null,
+        autoLoad = true,
+        settingsRepository = settingsRepository
     )
 
     private val activeScope: CoroutineScope
@@ -46,10 +55,12 @@ class MainViewModel(
     // Korábbi futó lekérdezés megszakítása a versenyhelyzetek (race condition) elkerülésére
     private var loadJob: Job? = null
 
-    var serverUrl: String = RetrofitInstance.baseUrl
+    private val savedSettings = settingsRepository?.read()
+
+    var serverUrl: String = savedSettings?.backendUrl ?: RetrofitInstance.baseUrl
         private set
 
-    var apiKey: String = ""
+    var apiKey: String = savedSettings?.apiKey ?: ""
         private set
 
     init {
@@ -60,9 +71,19 @@ class MainViewModel(
 
     fun updateSettings(newUrl: String, newApiKey: String) {
         loadJob?.cancel()
-        serverUrl = newUrl.trim()
-        apiKey = newApiKey.trim()
-        loadData()
+        try {
+            val normalizedUrl = urlUpdater(newUrl.trim())
+            val trimmedKey = newApiKey.trim()
+            // Csak validált címet mentünk; tartós tárhelyre írunk még az új lekérdezés előtt.
+            settingsRepository?.write(ConnectionSettings(normalizedUrl, trimmedKey))
+            serverUrl = normalizedUrl
+            apiKey = trimmedKey
+            loadData()
+        } catch (e: Exception) {
+            _uiState.value = UiState.Error(
+                "A kapcsolati beállítások mentése sikertelen: ${e.localizedMessage ?: e.message}"
+            )
+        }
     }
 
     fun loadData() {
