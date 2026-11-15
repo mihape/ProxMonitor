@@ -19,7 +19,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import hu.petermihalek.proxmonitor.network.ResourceItem
 import hu.petermihalek.proxmonitor.network.ServerStatusResponse
 import hu.petermihalek.proxmonitor.ui.theme.ProxMonitorTheme
@@ -29,9 +30,17 @@ class MainActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
 
+    val factory = object : ViewModelProvider.Factory {
+      @Suppress("UNCHECKED_CAST")
+      override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        require(modelClass.isAssignableFrom(MainViewModel::class.java))
+        return MainViewModel(SecureConnectionSettings(applicationContext)) as T
+      }
+    }
+    val viewModel = ViewModelProvider(this, factory)[MainViewModel::class.java]
+
     setContent {
       ProxMonitorTheme {
-        val viewModel: MainViewModel = viewModel()
         DashboardScreen(viewModel)
       }
     }
